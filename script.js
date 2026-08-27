@@ -1,5 +1,12 @@
 // ==============================================
-// 1. LÓGICA DE AUTENTICAÇÃO E PROTEÇÃO DE ROTAS
+// 1. CONFIGURAÇÃO DO SUPABASE (JÁ PREENCHIDO)
+// ==============================================
+const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==============================================
+// 2. LÓGICA DE AUTENTICAÇÃO E PROTEÇÃO DE ROTAS
 // ==============================================
 
 function logout() {
@@ -36,7 +43,7 @@ function redirectIfNotLoggedIn() {
 }
 
 // ==============================================
-// 2. DEFINIÇÃO DAS COLUNAS
+// 3. DEFINIÇÃO DAS COLUNAS
 // ==============================================
 
 const COLUMNS = [
@@ -58,7 +65,7 @@ const COLUMNS = [
 ];
 
 // ==============================================
-// 3. FORMATAÇÃO DE NÚMEROS
+// 4. FORMATAÇÃO DE NÚMEROS
 // ==============================================
 
 function formatCellValue(val, tipo) {
@@ -83,18 +90,70 @@ function formatCellValue(val, tipo) {
 }
 
 // ==============================================
-// 4. MÓDULO DE IMPORTAÇÃO
+// 5. FUNÇÕES DE BANCO DE DADOS (SUPABASE)
 // ==============================================
 
-const STORAGE_KEY = 'relatorio1707_data';
 let currentParsedData = [];
 let currentDisplayData = [];
-
 let currentSort = { col: null, asc: true };
 let currentFilters = {}; 
-
 let modalColumnIndex = null; 
 let modalSortDir = null;
+
+// Carrega dados do banco ao abrir a página
+async function loadFromDatabase() {
+    const { data, error } = await supabase.from('relatorio_1707').select('*').order('id');
+    if (error) {
+        console.error('Erro ao carregar do banco:', error);
+        alert('Erro ao carregar dados do banco.');
+        return;
+    }
+    
+    if (data && data.length > 0) {
+        currentParsedData = data;
+        currentFilters = {};
+        currentSort = { col: null, asc: true };
+        applyFiltersAndSort();
+        document.getElementById('previewContainer').style.display = 'block';
+        document.getElementById('importBtn').style.display = 'none';
+    }
+}
+
+// Chama a função ao abrir a página de importação
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('previewContainer')) {
+        loadFromDatabase();
+    }
+});
+
+// Salva os dados no banco (apaga tudo e insere novos)
+async function saveToDatabase(data) {
+    // Primeiro apaga todos os registros
+    const { error: deleteError } = await supabase.from('relatorio_1707').delete().neq('id', 0);
+    if (deleteError) {
+        console.error('Erro ao apagar dados:', deleteError);
+        alert('Erro ao apagar dados antigos.');
+        return;
+    }
+
+    // Insere os novos dados (o Supabase aceita arrays grandes, mas para segurança dividimos em blocos)
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        const chunk = data.slice(i, i + CHUNK_SIZE);
+        const { error: insertError } = await supabase.from('relatorio_1707').insert(chunk);
+        if (insertError) {
+            console.error('Erro ao inserir dados:', insertError);
+            alert('Erro ao salvar dados no banco.');
+            return;
+        }
+    }
+
+    alert('Dados salvos com sucesso no banco de dados!');
+}
+
+// ==============================================
+// 6. MÓDULO DE IMPORTAÇÃO (EXCEL)
+// ==============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropArea = document.getElementById('dropArea');
@@ -135,9 +194,7 @@ function handleFileUpload(file) {
             const worksheet = workbook.Sheets[firstSheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            // Não pula nenhuma linha
             const dataRows = jsonData; 
-
             const filteredRows = dataRows.filter(row => {
                 return row && row.some(cell => cell !== undefined && cell !== null && cell !== '');
             });
@@ -185,6 +242,9 @@ function handleFileUpload(file) {
                 if (endIdx < totalLines) {
                     setTimeout(() => processChunk(endIdx), 15);
                 } else {
+                    // Salva no banco de dados
+                    saveToDatabase(parsedData);
+                    
                     currentParsedData = parsedData;
                     currentFilters = {};
                     currentSort = { col: null, asc: true };
@@ -205,13 +265,10 @@ function handleFileUpload(file) {
 }
 
 // ==============================================
-// 5. ORDENAÇÃO, FILTRO E RENDERIZAÇÃO
+// 7. ORDENAÇÃO, FILTRO E RENDERIZAÇÃO
 // ==============================================
 
 function applyFiltersAndSort() {
-    // Usa a função com progresso, mas sem mostrar o overlay (para o caso de importação)
-    // Na verdade, para renderizar a tabela após importação, não precisamos de progresso.
-    // Vamos apenas chamar a renderização normal.
     let filteredData = [...currentParsedData];
 
     Object.keys(currentFilters).forEach(colIndex => {
@@ -230,10 +287,8 @@ function applyFiltersAndSort() {
         filteredData.sort((a, b) => {
             let valA = a[key];
             let valB = b[key];
-
             let numA = parseInt(String(valA).replace(/[^\d]/g, ''), 10);
             let numB = parseInt(String(valB).replace(/[^\d]/g, ''), 10);
-
             if (!isNaN(numA) && !isNaN(numB)) {
                 return asc ? numA - numB : numB - numA;
             } else {
@@ -250,10 +305,8 @@ function applyFiltersAndSort() {
     renderTable();
 }
 
-// Função para aplicar filtros COM progresso (usada pelo botão "Filtrar Selecionados")
 function applyFiltersWithProgress() {
     showLoadingModal();
-    
     const filteredData = [];
     const total = currentParsedData.length;
     const CHUNK_SIZE = 500;
@@ -276,9 +329,7 @@ function applyFiltersWithProgress() {
                     }
                 }
             }
-            if (passes) {
-                filteredData.push(row);
-            }
+            if (passes) filteredData.push(row);
         }
         
         processed = endIdx;
@@ -293,7 +344,6 @@ function applyFiltersWithProgress() {
             setTimeout(hideLoadingModal, 400);
         }
     }
-    
     processChunk(0);
 }
 
@@ -302,7 +352,6 @@ function renderTable() {
     const tbody = document.getElementById('tableBody');
     if(!thead || !tbody) return;
 
-    // Cabeçalho com fundo em GRADIENTE AZUL e letras BRANCAS
     thead.innerHTML = '<tr>' + COLUMNS.map((col, index) => `
         <th style="padding: 12px 10px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-bottom: 2px solid #1e3a8a; color: #ffffff; font-weight: 700; white-space: nowrap; position: relative; cursor: pointer;">
             <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -317,7 +366,6 @@ function renderTable() {
         </th>
     `).join('') + '</tr>';
 
-    // Corpo
     tbody.innerHTML = '';
     currentDisplayData.forEach(row => {
         const tr = document.createElement('tr');
@@ -341,12 +389,11 @@ function triggerSort(colIndex) {
 }
 
 // ==============================================
-// 6. MODAL DE FILTRO (NOVA LÓGICA - ACUMULA, DEPOIS FILTRA)
+// 8. MODAL DE FILTRO
 // ==============================================
 
 function toggleFilterModal(colIndex, event) {
     event.stopPropagation();
-    
     const overlay = document.getElementById('filterOverlay');
     if (overlay) {
         closeFilterModal();
@@ -446,9 +493,7 @@ function toggleFilterModal(colIndex, event) {
             cb.value = val;
             cb.checked = selectedValues.includes(val);
             cb.style.cssText = 'accent-color: #3b82f6; cursor: pointer; transform: scale(1.1);';
-            
-            // IMPORTANTE: NÃO EXECUTAR O FILTRO AO CLICAR. Apenas marca/desmarca.
-            cb.onchange = () => { /* Sem ação imediata, apenas acumula visualmente */ };
+            cb.onchange = () => { };
             
             labelEl.appendChild(cb);
             labelEl.appendChild(document.createTextNode(val));
@@ -459,7 +504,6 @@ function toggleFilterModal(colIndex, event) {
     renderModalCheckboxes();
     modal.appendChild(scrollArea);
 
-    // Rodapé com botões ACUMULAR, MARCAR TODOS, LIMPAR e FILTRAR SELECIONADOS
     const actionArea = document.createElement('div');
     actionArea.style.cssText = `
         display: flex; flex-direction: column; gap: 10px;
@@ -476,7 +520,6 @@ function toggleFilterModal(colIndex, event) {
     btnSelectAll.style.cssText = 'flex:1; justify-content:center; font-size:0.85rem;';
     btnSelectAll.onclick = () => {
         document.getElementById('filterScrollArea').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-        // Não atualiza o filtro, apenas visual
     };
 
     const btnClear = document.createElement('button');
@@ -485,7 +528,6 @@ function toggleFilterModal(colIndex, event) {
     btnClear.style.cssText = 'flex:1; justify-content:center; font-size:0.85rem;';
     btnClear.onclick = () => {
         document.getElementById('filterScrollArea').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-        // Não atualiza o filtro, apenas visual
     };
 
     row1.appendChild(btnSelectAll);
@@ -497,21 +539,17 @@ function toggleFilterModal(colIndex, event) {
     btnApply.className = 'btn-primary';
     btnApply.style.cssText = 'width: 100%; justify-content: center; font-size: 0.95rem;';
     btnApply.onclick = () => {
-        // Agora lê as seleções e aplica o filtro com progresso
         const currentScrollArea = document.getElementById('filterScrollArea');
         if (!currentScrollArea) return;
-        
         const checked = currentScrollArea.querySelectorAll('input[type="checkbox"]:checked');
         const values = Array.from(checked).map(cb => cb.value);
-        
         if (values.length > 0) {
             currentFilters[modalColumnIndex] = values;
         } else {
             delete currentFilters[modalColumnIndex];
         }
-        
         closeFilterModal();
-        applyFiltersWithProgress(); // Dispara o filtro com o gráfico de carregamento
+        applyFiltersWithProgress();
     };
 
     actionArea.appendChild(btnApply);
@@ -529,7 +567,6 @@ function changeModalSort(direction) {
     if (overlay) {
         const scrollArea = document.getElementById('filterScrollArea');
         if (scrollArea) {
-            // Recria a lista com a nova ordenação (sem mexer nos checkboxes marcados)
             const currentScrollArea = scrollArea;
             const col = COLUMNS[modalColumnIndex];
             const key = col.key;
@@ -555,7 +592,7 @@ function changeModalSort(direction) {
             }
 
             const selectedValues = currentFilters[modalColumnIndex] || [];
-            currentScrollArea.innerHTML = ''; // Limpa tudo
+            currentScrollArea.innerHTML = '';
 
             sortedValues.forEach(val => {
                 const labelEl = document.createElement('label');
@@ -572,7 +609,7 @@ function changeModalSort(direction) {
                 cb.value = val;
                 cb.checked = selectedValues.includes(val);
                 cb.style.cssText = 'accent-color: #3b82f6; cursor: pointer; transform: scale(1.1);';
-                cb.onchange = () => { /* Sem ação imediata */ };
+                cb.onchange = () => { };
                 
                 labelEl.appendChild(cb);
                 labelEl.appendChild(document.createTextNode(val));
@@ -598,7 +635,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==============================================
-// 7. CONTROLE DO MODAL DE CARREGAMENTO
+// 9. CONTROLE DO MODAL DE CARREGAMENTO
 // ==============================================
 
 function showLoadingModal() {
@@ -624,20 +661,18 @@ function hideLoadingModal() {
 }
 
 // ==============================================
-// 8. CONFIRMAÇÃO DE IMPORTAÇÃO
+// 10. CONFIRMAÇÃO DE IMPORTAÇÃO
 // ==============================================
 
 function confirmImport() {
     const existingData = localStorage.getItem(STORAGE_KEY);
     let shouldProceed = true;
 
-    if (existingData) {
-        shouldProceed = confirm("⚠️ Já existem dados do Relatório 1707 armazenados.\n\nDeseja zerar os dados existentes e importar os novos?\n(Clique em 'Cancelar' para manter os dados atuais).");
+    if (currentParsedData.length > 0) {
+        shouldProceed = confirm("⚠️ Já existem dados armazenados no banco.\n\nDeseja zerar os dados existentes e importar os novos?\n(Clique em 'Cancelar' para manter os dados atuais).");
     }
 
     if (shouldProceed) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentParsedData));
-        
         const btn = document.getElementById('importBtn');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-check-circle"></i> Importado com sucesso!';
@@ -649,12 +684,11 @@ function confirmImport() {
             btn.style.background = '';
             btn.disabled = false;
             document.getElementById('fileInput').value = '';
-            document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('previewContainer').style.display = 'block';
             document.getElementById('importBtn').style.display = 'none';
-            document.getElementById('dropArea').style.borderColor = 'rgba(59,130,246,0.3)';
             currentParsedData = [];
             currentDisplayData = [];
-            renderTable();
+            loadFromDatabase();
         }, 3000);
     } else {
         alert("Importação cancelada. Os dados antigos foram mantidos.");

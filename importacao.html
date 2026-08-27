@@ -6,10 +6,14 @@
     <title>Importação de Dados - Auditoria</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Biblioteca do Supabase (OBRIGATÓRIA para conectar ao banco) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Biblioteca para leitura de Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <script>
+        // Proteção de rota: se não estiver logado, volta pro login
         if (localStorage.getItem('isLoggedIn') !== 'true') {
             window.location.href = 'index.html';
         }
@@ -32,34 +36,49 @@
                 </p>
             </div>
 
+            <!-- Área de Upload -->
             <div style="border: 2px dashed rgba(59,130,246,0.3); border-radius: 16px; padding: 40px 20px; background: rgba(255,255,255,0.4); transition: 0.3s; cursor: pointer;" id="dropArea">
                 <i class="fas fa-cloud-upload-alt" style="font-size: 40px; color: #94a3b8; margin-bottom: 10px;"></i>
                 <p style="color: #64748b;">Arraste o arquivo .xlsx ou <strong style="color: #3b82f6;">clique para selecionar</strong></p>
                 <input type="file" id="fileInput" accept=".xlsx" style="display: none;">
             </div>
 
+            <!-- Botão de Importar (confirma a gravação no banco) -->
             <button id="importBtn" onclick="confirmImport()" style="display: none; margin-top: 20px; justify-content: center; width: 100%;" class="btn-primary">
                 <i class="fas fa-database"></i> Importar Dados
             </button>
 
-            <div id="previewContainer" style="display: none; margin-top: 25px; border-top: 1px solid rgba(59,130,246,0.1); padding-top: 20px;">
+            <!-- Botões de Backup (Exportar/Importar JSON para segurança) -->
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                <button onclick="exportData()" class="btn-outline" style="padding: 10px 20px; font-size: 0.9rem;">
+                    <i class="fas fa-download"></i> Exportar Backup
+                </button>
+                <label class="btn-outline" style="padding: 10px 20px; font-size: 0.9rem; cursor: pointer; margin-bottom: 0;">
+                    <i class="fas fa-upload"></i> Importar Backup
+                    <input type="file" id="backupInput" accept=".json" style="display: none;" onchange="importBackup(event)">
+                </label>
+            </div>
+
+            <!-- Pré-visualização dos dados (sempre visível se houver dados) -->
+            <div id="previewContainer" style="margin-top: 25px; border-top: 1px solid rgba(59,130,246,0.1); padding-top: 20px; display: none;">
                 <p style="color: #1e3a8a; text-align: left; font-weight: 600; margin-bottom: 10px;">
                     Visualização dos Dados:
                 </p>
                 <div id="tableWrapper" style="max-height: 600px; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; background: rgba(255,255,255,0.6); position: relative;">
                     <table id="dataTable" style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <!-- Cabeçalho fixo com nomes das colunas -->
                         <thead id="tableHead" style="position: sticky; top: 0; z-index: 10;"></thead>
                         <tbody id="tableBody"></tbody>
                     </table>
                 </div>
                 <p style="color: #64748b; font-size: 0.8rem; margin-top: 5px; text-align: left;">
-                    * Dados armazenados no seu navegador (localStorage).
+                    * Dados carregados do banco de dados (Supabase).
                 </p>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Carregamento (AZUL ESCURO TRANSLÚCIDO) -->
+    <!-- Modal de Carregamento (Gráfico de Rosca) -->
     <div id="loadingOverlay" style="display: none; position: fixed; inset: 0; background: rgba(30, 58, 138, 0.85); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center; flex-direction: column;">
         <div class="donut-container">
             <div class="donut-ring" id="donutRing"></div>

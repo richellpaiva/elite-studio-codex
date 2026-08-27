@@ -95,10 +95,22 @@
                         <input type="date" id="data_abertura" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
-                    <!-- Endereço -->
+                    <!-- ENDEREÇO (Nome da Rua) -->
                     <div style="grid-column: 1 / -1;">
-                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Endereço</label>
-                        <input type="text" id="endereco" placeholder="Rua, número, complemento" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Endereço (Rua/Avenida)</label>
+                        <input type="text" id="endereco" placeholder="Ex: Avenida Prefeito Wall Ferraz" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
+                    </div>
+
+                    <!-- NÚMERO -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Número</label>
+                        <input type="text" id="numero" placeholder="Ex: 1000" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
+                    </div>
+
+                    <!-- COMPLEMENTO -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Complemento</label>
+                        <input type="text" id="complemento" placeholder="Ex: Sala 101" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Bairro -->
@@ -143,7 +155,6 @@
     <script src="script.js"></script>
     <script>
         // Usa o supabaseClient global que já foi criado no script.js
-        // Sem redeclarar a variável (evita o erro "already been declared")
         const dbClient = window.supabaseClient || null;
 
         // --- MÁSCARAS ---
@@ -195,7 +206,6 @@
         let dados = [];
         let editandoId = null;
 
-        // Carregar dados do Supabase
         async function carregarDados() {
             if (dbClient) {
                 const { data, error } = await dbClient.from('empresas').select('*');
@@ -212,7 +222,6 @@
             renderizarTabela();
         }
 
-        // Renderizar tabela
         function renderizarTabela(filtro = '') {
             const tbody = document.getElementById('tabela-corpo');
             tbody.innerHTML = '';
@@ -273,7 +282,6 @@
             renderizarTabela(filtro);
         }
 
-        // Abrir modal
         function abrirModal(item = null) {
             document.getElementById('modal').style.display = 'flex';
             document.getElementById('modal-titulo').textContent = item ? 'Editar Empresa' : 'Adicionar Empresa';
@@ -282,6 +290,8 @@
             document.getElementById('cnpj').value = item ? item.cnpj : '';
             document.getElementById('data_abertura').value = item ? item.data_abertura || '' : '';
             document.getElementById('endereco').value = item ? item.endereco || '' : '';
+            document.getElementById('numero').value = item ? item.numero || '' : '';
+            document.getElementById('complemento').value = item ? item.complemento || '' : '';
             document.getElementById('bairro').value = item ? item.bairro || '' : '';
             document.getElementById('cidade').value = item ? item.cidade || '' : '';
             document.getElementById('telefone').value = item ? item.telefone || '' : '';
@@ -305,7 +315,6 @@
             editandoId = null;
         }
 
-        // Salvar registro
         async function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
@@ -315,6 +324,8 @@
             }
             const data_abertura = document.getElementById('data_abertura').value;
             const endereco = document.getElementById('endereco').value.trim();
+            const numero = document.getElementById('numero').value.trim();
+            const complemento = document.getElementById('complemento').value.trim();
             const bairro = document.getElementById('bairro').value.trim();
             const cidade = document.getElementById('cidade').value.trim();
             const telefone = document.getElementById('telefone').value.trim();
@@ -325,12 +336,12 @@
             if (dbClient) {
                 if (editandoId) {
                     const { error } = await dbClient.from('empresas').update({
-                        razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
+                        razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                     }).eq('id', editandoId);
                     if (error) alert('Erro ao atualizar: ' + error.message);
                 } else {
                     const { error } = await dbClient.from('empresas').insert({
-                        razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
+                        razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                     });
                     if (error) alert('Erro ao salvar: ' + error.message);
                 }
@@ -340,10 +351,10 @@
             if (editandoId) {
                 const index = dados.findIndex(d => d.id === editandoId);
                 if (index !== -1) {
-                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo };
+                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
                 }
             } else {
-                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo });
+                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo });
             }
             localStorage.setItem('empresasData', JSON.stringify(dados));
 

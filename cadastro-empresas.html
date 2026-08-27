@@ -154,7 +154,7 @@
 
     <script src="script.js"></script>
     <script>
-        // Usa o supabaseClient global que já foi criado no script.js
+        // Usa o supabaseClient global que já foi criado no script.js (sem redeclarar)
         const dbClient = window.supabaseClient || null;
 
         // --- MÁSCARAS ---
@@ -338,25 +338,33 @@
                     const { error } = await dbClient.from('empresas').update({
                         razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                     }).eq('id', editandoId);
-                    if (error) alert('Erro ao atualizar: ' + error.message);
+                    if (error) {
+                        alert('Erro ao atualizar no Supabase: ' + error.message);
+                    } else {
+                        alert('Empresa atualizada com sucesso no Supabase!');
+                    }
                 } else {
                     const { error } = await dbClient.from('empresas').insert({
                         razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                     });
-                    if (error) alert('Erro ao salvar: ' + error.message);
-                }
-            }
-
-            // Fallback local
-            if (editandoId) {
-                const index = dados.findIndex(d => d.id === editandoId);
-                if (index !== -1) {
-                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
+                    if (error) {
+                        alert('Erro ao salvar no Supabase: ' + error.message);
+                    } else {
+                        alert('Empresa salva com sucesso no Supabase!');
+                    }
                 }
             } else {
-                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo });
+                alert('Atenção: Cliente Supabase não encontrado. Salvando apenas localmente.');
+                if (editandoId) {
+                    const index = dados.findIndex(d => d.id === editandoId);
+                    if (index !== -1) {
+                        dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
+                    }
+                } else {
+                    dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo });
+                }
+                localStorage.setItem('empresasData', JSON.stringify(dados));
             }
-            localStorage.setItem('empresasData', JSON.stringify(dados));
 
             fecharModal();
             carregarDados();
@@ -376,7 +384,7 @@
             if (!confirm('Deseja excluir esta empresa?')) return;
             if (dbClient) {
                 const { error } = await dbClient.from('empresas').delete().eq('id', id);
-                if (error) alert('Erro ao excluir: ' + error.message);
+                if (error) alert('Erro ao excluir no Supabase: ' + error.message);
             }
             dados = dados.filter(d => d.id !== id);
             localStorage.setItem('empresasData', JSON.stringify(dados));

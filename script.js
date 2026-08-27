@@ -1,14 +1,16 @@
 // ==============================================
-// 1. CONFIGURAÇÃO DO SUPABASE
+// 1. CONFIGURAÇÃO DO SUPABASE (CORRETA)
 // ==============================================
 const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
 
+// Cliente global para uso em todas as páginas
 let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = supabaseClient; // Expõe globalmente para outras páginas usarem
 } else {
-    console.warn("Biblioteca Supabase não carregada. O sistema continuará funcionando localmente.");
+    console.warn("Biblioteca Supabase não carregada.");
 }
 
 // ==============================================
@@ -35,15 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('userName', userFound.name);
                 localStorage.setItem('empresaId', userFound.empresaId || 1);
-                
-                // Redirecionamento inteligente:
-                // Se for Administrador (nome "Administrador" ou login "RICHELL"), vai para home.html
-                // Caso contrário, vai para painel-empresa.html
-                if (userFound.name === 'Administrador' || userFound.login === 'RICHELL') {
-                    window.location.href = 'home.html';
-                } else {
-                    window.location.href = 'painel-empresa.html';
-                }
+                window.location.href = 'home.html';
             } else {
                 const errorMsg = document.getElementById('loginError');
                 if(errorMsg) errorMsg.style.display = 'block';
@@ -59,9 +53,8 @@ function redirectIfNotLoggedIn() {
 }
 
 // ==============================================
-// 3. DEFINIÇÃO DAS COLUNAS
+// 3. COLUNAS DA TABELA 1707
 // ==============================================
-
 const COLUMNS = [
     { key: 'cod_produto',      label: 'COD_PRODUTO',       tipo: 'texto' },
     { key: 'descricao',        label: 'DESCRICAO_PRODUTO', tipo: 'texto' },
@@ -81,34 +74,8 @@ const COLUMNS = [
 ];
 
 // ==============================================
-// 4. FORMATAÇÃO DE NÚMEROS
+// 4. FUNÇÕES DE BANCO (RELATÓRIO 1707)
 // ==============================================
-
-function formatCellValue(val, tipo) {
-    if (val === null || val === undefined || val === '') return '';
-    let str = String(val).trim();
-    
-    if (tipo === 'numero_int') {
-        let cleanStr = str.replace(/[^\d]/g, '');
-        let num = parseInt(cleanStr, 10);
-        if (!isNaN(num)) return num.toString();
-        return str;
-    }
-
-    if (tipo === 'numero_milhar') {
-        let cleanStr = str.replace(/[^\d]/g, '');
-        let num = parseInt(cleanStr, 10);
-        if (!isNaN(num)) return num.toLocaleString('pt-BR');
-        return str;
-    }
-
-    return str;
-}
-
-// ==============================================
-// 5. FUNÇÕES DE BANCO DE DADOS (SUPABASE)
-// ==============================================
-
 let currentParsedData = [];
 let currentDisplayData = [];
 let currentSort = { col: null, asc: true };
@@ -144,13 +111,12 @@ async function saveToDatabase(data) {
         const { error: insertError } = await supabaseClient.from('relatorio_1707').insert(chunk);
         if (insertError) { console.error('Erro ao inserir dados:', insertError); return; }
     }
-    alert('Dados salvos com sucesso no banco de dados!');
+    alert('Dados salvos com sucesso no banco!');
 }
 
 // ==============================================
-// 6. MÓDULO DE IMPORTAÇÃO (EXCEL)
+// 5. LÓGICA DE IMPORTAÇÃO (EXCEL)
 // ==============================================
-
 document.addEventListener('DOMContentLoaded', () => {
     const dropArea = document.getElementById('dropArea');
     const fileInput = document.getElementById('fileInput');
@@ -194,9 +160,8 @@ function handleFileUpload(file) {
 }
 
 // ==============================================
-// 7. ORDENAÇÃO, FILTRO E RENDERIZAÇÃO
+// 6. ORDENAÇÃO, FILTRO E RENDERIZAÇÃO (TABELA 1707)
 // ==============================================
-
 function applyFiltersAndSort() {
     let filteredData = [...currentParsedData];
     Object.keys(currentFilters).forEach(colIndex => {
@@ -246,5 +211,171 @@ function triggerSort(colIndex) {
     applyFiltersAndSort();
 }
 
-// As funções de filtro modal, carregamento e confirmação permanecem as mesmas do seu código anterior (já funcionando).
-// Para não gerar arquivo gigante, mantive apenas o essencial. Se precisar do restante completo, me avise.
+function formatCellValue(val, tipo) {
+    if (val === null || val === undefined || val === '') return '';
+    let str = String(val).trim();
+    if (tipo === 'numero_int') {
+        let cleanStr = str.replace(/[^\d]/g, '');
+        let num = parseInt(cleanStr, 10);
+        if (!isNaN(num)) return num.toString();
+        return str;
+    }
+    if (tipo === 'numero_milhar') {
+        let cleanStr = str.replace(/[^\d]/g, '');
+        let num = parseInt(cleanStr, 10);
+        if (!isNaN(num)) return num.toLocaleString('pt-BR');
+        return str;
+    }
+    return str;
+}
+
+function toggleFilterModal(colIndex, event) {
+    event.stopPropagation();
+    const overlay = document.getElementById('filterOverlay');
+    if (overlay) { closeFilterModal(); return; }
+
+    modalColumnIndex = colIndex;
+    modalSortDir = null;
+    const col = COLUMNS[colIndex];
+    const key = col.key, label = col.label, tipo = col.tipo;
+
+    const uniqueValues = [...new Set(currentParsedData.map(row => formatCellValue(row[key], tipo)))]
+        .filter(v => v !== '' && v !== null && v !== 'undefined');
+
+    const overlayEl = document.createElement('div');
+    overlayEl.id = 'filterOverlay';
+    overlayEl.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center;`;
+    overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) closeFilterModal(); });
+
+    const modal = document.createElement('div');
+    modal.id = 'filterModalBox';
+    modal.style.cssText = `background: #ffffff; border: 1px solid #3b82f6; border-radius: 16px; padding: 20px; min-width: 320px; max-width: 450px; width: 90%; max-height: 80vh; display: flex; flex-direction: column; position: relative; z-index: 10000; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);`;
+
+    const header = document.createElement('div');
+    header.style.cssText = `display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e0f2fe; padding-bottom: 10px;`;
+    header.innerHTML = `<span style="color: #1e3a8a; font-size: 1.1rem; font-weight: 700;">Filtrar: ${label}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button onclick="changeModalSort('asc')" style="background:transparent; border:1px solid #ccc; color:#1e3a8a; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.8rem;">▲</button>
+            <button onclick="changeModalSort('desc')" style="background:transparent; border:1px solid #ccc; color:#1e3a8a; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.8rem;">▼</button>
+            <button onclick="closeFilterModal()" style="background:transparent; border:none; color:#888; cursor:pointer; font-size:1.2rem;">&times;</button>
+        </div>`;
+    modal.appendChild(header);
+
+    const scrollArea = document.createElement('div');
+    scrollArea.id = 'filterScrollArea';
+    scrollArea.style.cssText = `max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0px; padding: 5px 0px; background: #ffffff;`;
+
+    let sortedValues = [...uniqueValues];
+    if (modalSortDir === 'asc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nA - nB; return String(a).localeCompare(String(b)); });
+    if (modalSortDir === 'desc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nB - nA; return String(b).localeCompare(String(a)); });
+
+    const selectedValues = currentFilters[modalColumnIndex] || [];
+    sortedValues.forEach(val => {
+        const labelEl = document.createElement('label');
+        labelEl.style.cssText = `display: flex; align-items: center; gap: 12px; color: #1e3a8a; font-size: 0.95rem; cursor: pointer; padding: 8px 15px; background: #ffffff;`;
+        labelEl.onmouseenter = () => labelEl.style.background = '#e0f2fe';
+        labelEl.onmouseleave = () => labelEl.style.background = '#ffffff';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.value = val; cb.checked = selectedValues.includes(val);
+        cb.style.cssText = 'accent-color: #3b82f6; cursor: pointer; transform: scale(1.1);';
+        labelEl.appendChild(cb); labelEl.appendChild(document.createTextNode(val));
+        scrollArea.appendChild(labelEl);
+    });
+    modal.appendChild(scrollArea);
+
+    const actionArea = document.createElement('div');
+    actionArea.style.cssText = `display: flex; flex-direction: column; gap: 10px; margin-top: 10px; border-top: 1px solid #e0f2fe; padding-top: 15px; background: #ffffff;`;
+    const row1 = document.createElement('div'); row1.style.cssText = 'display: flex; gap: 10px;';
+    const btnSelectAll = document.createElement('button');
+    btnSelectAll.textContent = 'Marcar Todos'; btnSelectAll.className = 'btn-outline';
+    btnSelectAll.style.cssText = 'flex:1; justify-content:center; font-size:0.85rem;';
+    btnSelectAll.onclick = () => { document.getElementById('filterScrollArea').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true); };
+    const btnClear = document.createElement('button');
+    btnClear.textContent = 'Limpar'; btnClear.className = 'btn-outline';
+    btnClear.style.cssText = 'flex:1; justify-content:center; font-size:0.85rem;';
+    btnClear.onclick = () => { document.getElementById('filterScrollArea').querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); };
+    row1.appendChild(btnSelectAll); row1.appendChild(btnClear);
+    actionArea.appendChild(row1);
+
+    const btnApply = document.createElement('button');
+    btnApply.textContent = 'Filtrar Selecionados'; btnApply.className = 'btn-primary';
+    btnApply.style.cssText = 'width: 100%; justify-content: center; font-size: 0.95rem;';
+    btnApply.onclick = () => {
+        const currentScrollArea = document.getElementById('filterScrollArea');
+        if (!currentScrollArea) return;
+        const checked = currentScrollArea.querySelectorAll('input[type="checkbox"]:checked');
+        const values = Array.from(checked).map(cb => cb.value);
+        if (values.length > 0) currentFilters[modalColumnIndex] = values;
+        else delete currentFilters[modalColumnIndex];
+        closeFilterModal(); applyFiltersAndSort();
+    };
+    actionArea.appendChild(btnApply); modal.appendChild(actionArea);
+
+    overlayEl.appendChild(modal); document.body.appendChild(overlayEl);
+}
+
+function changeModalSort(direction) {
+    const overlay = document.getElementById('filterOverlay');
+    if (overlay) {
+        const scrollArea = document.getElementById('filterScrollArea');
+        if (scrollArea) {
+            const col = COLUMNS[modalColumnIndex];
+            const uniqueValues = [...new Set(currentParsedData.map(row => formatCellValue(row[col.key], col.tipo)))]
+                .filter(v => v !== '' && v !== null && v !== 'undefined');
+            let sortedValues = [...uniqueValues];
+            if (direction === 'asc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nA - nB; return String(a).localeCompare(String(b)); });
+            if (direction === 'desc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nB - nA; return String(b).localeCompare(String(a)); });
+            const selectedValues = currentFilters[modalColumnIndex] || [];
+            scrollArea.innerHTML = '';
+            sortedValues.forEach(val => {
+                const labelEl = document.createElement('label');
+                labelEl.style.cssText = `display: flex; align-items: center; gap: 12px; color: #1e3a8a; font-size: 0.95rem; cursor: pointer; padding: 8px 15px; background: #ffffff;`;
+                labelEl.onmouseenter = () => labelEl.style.background = '#e0f2fe';
+                labelEl.onmouseleave = () => labelEl.style.background = '#ffffff';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox'; cb.value = val; cb.checked = selectedValues.includes(val);
+                cb.style.cssText = 'accent-color: #3b82f6; cursor: pointer; transform: scale(1.1);';
+                labelEl.appendChild(cb); labelEl.appendChild(document.createTextNode(val));
+                scrollArea.appendChild(labelEl);
+            });
+        }
+    }
+}
+
+function closeFilterModal() {
+    const overlay = document.getElementById('filterOverlay');
+    if (overlay) { overlay.remove(); modalColumnIndex = null; modalSortDir = null; }
+}
+
+function showLoadingModal() {
+    const overlay = document.getElementById('loadingOverlay');
+    const ring = document.getElementById('donutRing');
+    if (overlay) { overlay.style.display = 'flex'; if (ring) ring.style.setProperty('--progress', '0%'); document.getElementById('progressText').textContent = '0%'; }
+}
+function updateLoadingProgress(percent) {
+    const ring = document.getElementById('donutRing');
+    const text = document.getElementById('progressText');
+    if (ring) ring.style.setProperty('--progress', percent + '%');
+    if (text) text.textContent = percent + '%';
+}
+function hideLoadingModal() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+function confirmImport() {
+    if (currentParsedData.length > 0) {
+        if (!confirm("⚠️ Já existem dados. Deseja zerar e importar os novos?")) return;
+    }
+    const btn = document.getElementById('importBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> Importado com sucesso!';
+    btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+    btn.disabled = true;
+    setTimeout(() => {
+        btn.innerHTML = originalText; btn.style.background = ''; btn.disabled = false;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('importBtn').style.display = 'none';
+        currentParsedData = []; currentDisplayData = []; renderTable();
+    }, 3000);
+}

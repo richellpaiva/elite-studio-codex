@@ -77,13 +77,13 @@
                         </div>
                     </div>
 
-                    <!-- Razão Social (OBRIGATÓRIO) -->
+                    <!-- Razão Social (OBRIGATÓRIO - destaque azul claro) -->
                     <div style="grid-column: 1 / -1;">
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Razão Social *</label>
                         <input type="text" id="razao" placeholder="Ex: Distribuidora Silva LTDA" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
                     </div>
 
-                    <!-- CNPJ (OBRIGATÓRIO) -->
+                    <!-- CNPJ (OBRIGATÓRIO - destaque azul claro) -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">CNPJ *</label>
                         <input type="text" id="cnpj" placeholder="00.000.000/0000-00" oninput="mascaraCNPJ(this)" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
@@ -95,19 +95,19 @@
                         <input type="date" id="data_abertura" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
-                    <!-- Endereço -->
+                    <!-- ENDEREÇO (Nome da Rua) -->
                     <div style="grid-column: 1 / -1;">
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Endereço (Rua/Avenida)</label>
                         <input type="text" id="endereco" placeholder="Ex: Avenida Prefeito Wall Ferraz" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
-                    <!-- Número -->
+                    <!-- NÚMERO -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Número</label>
                         <input type="text" id="numero" placeholder="Ex: 1000" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
-                    <!-- Complemento -->
+                    <!-- COMPLEMENTO -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Complemento</label>
                         <input type="text" id="complemento" placeholder="Ex: Sala 101" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
@@ -119,7 +119,7 @@
                         <input type="text" id="bairro" placeholder="Bairro" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
-                    <!-- Cidade/UF -->
+                    <!-- Cidade/Estado -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Cidade / UF</label>
                         <input type="text" id="cidade" placeholder="Teresina - PI" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
@@ -154,10 +154,9 @@
 
     <script src="script.js"></script>
     <script>
-        // Cria uma conexão local com o Supabase (sem depender do script.js)
-        const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Usa as constantes globais que JÁ foram declaradas no script.js (SUPABASE_URL e SUPABASE_ANON_KEY)
+        // SEM redeclarar - isso resolve o erro "Identifier 'SUPABASE_URL' has already been declared"
+        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- MÁSCARAS ---
         function mascaraCNPJ(input) {
@@ -209,7 +208,7 @@
         let editandoId = null;
 
         async function carregarDados() {
-            const { data, error } = await supabase.from('empresas').select('*');
+            const { data, error } = await dbClient.from('empresas').select('*');
             if (error) {
                 console.error('Erro ao carregar empresas:', error);
                 dados = [];
@@ -331,7 +330,7 @@
             const logo = document.getElementById('preview-logo').src || '';
 
             if (editandoId) {
-                const { error } = await supabase.from('empresas').update({
+                const { error } = await dbClient.from('empresas').update({
                     razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                 }).eq('id', editandoId);
                 if (error) {
@@ -340,7 +339,7 @@
                     alert('Empresa atualizada com sucesso no Supabase!');
                 }
             } else {
-                const { error } = await supabase.from('empresas').insert({
+                const { error } = await dbClient.from('empresas').insert({
                     razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
                 });
                 if (error) {
@@ -355,16 +354,14 @@
         }
 
         async function editarRegistro(id) {
-            const { data } = await supabase.from('empresas').select('*').eq('id', id).single();
+            const { data } = await dbClient.from('empresas').select('*').eq('id', id).single();
             if (data) abrirModal(data);
         }
 
         async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            const { error } = await supabase.from('empresas').delete().eq('id', id);
-            if (error) {
-                alert('Erro ao excluir no Supabase: ' + error.message);
-            }
+            const { error } = await dbClient.from('empresas').delete().eq('id', id);
+            if (error) alert('Erro ao excluir no Supabase: ' + error.message);
             carregarDados();
         }
 

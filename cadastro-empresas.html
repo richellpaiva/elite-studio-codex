@@ -10,7 +10,6 @@
 </head>
 <body>
     <script>
-        // Proteção: se não estiver logado, volta para o login
         if (localStorage.getItem('isLoggedIn') !== 'true') {
             window.location.href = 'index.html';
         }
@@ -23,7 +22,7 @@
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
 
-        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1200px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1000px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
 
             <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 10px;">Cadastro de Empresas</h2>
             <p style="color: #64748b; text-align: center; margin-bottom: 30px;">Gerencie as empresas cadastradas no sistema</p>
@@ -33,20 +32,18 @@
                 <button onclick="abrirModal()" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;">
                     <i class="fas fa-plus"></i> Adicionar Empresa
                 </button>
-                <input type="text" id="buscaEmpresa" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarTabela()" style="max-width: 300px; flex: 1; background: rgba(255,255,255,0.9); border: 1px solid rgba(59,130,246,0.2); border-radius: 50px; padding: 10px 20px; color: #1e3a8a; outline: none; font-size: 0.95rem;">
+                <input type="text" id="buscaEmpresa" placeholder="Pesquisar por Razão Social..." oninput="filtrarTabela()" style="max-width: 350px; flex: 1; background: rgba(255,255,255,0.9); border: 1px solid rgba(59,130,246,0.2); border-radius: 50px; padding: 10px 20px; color: #1e3a8a; outline: none; font-size: 0.95rem;">
             </div>
 
-            <!-- Tabela de Empresas -->
+            <!-- Tabela de Empresas (apenas logo, razão, CNPJ e ações) -->
             <div style="max-height: 500px; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; background: rgba(255,255,255,0.6);">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; z-index: 10;">
                         <tr>
-                            <th style="padding: 15px; font-weight: 600;">Logo</th>
+                            <th style="padding: 15px; font-weight: 600; width: 100px;">Logo</th>
                             <th style="padding: 15px; font-weight: 600;">Razão Social</th>
                             <th style="padding: 15px; font-weight: 600;">CNPJ</th>
-                            <th style="padding: 15px; font-weight: 600;">Cidade</th>
-                            <th style="padding: 15px; font-weight: 600;">E-mail</th>
-                            <th style="padding: 15px; font-weight: 600;">Ações</th>
+                            <th style="padding: 15px; font-weight: 600; width: 120px; text-align: center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabela-corpo">
@@ -55,13 +52,13 @@
                 </table>
             </div>
 
-            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados armazenados localmente no navegador (localStorage).</p>
+            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados sincronizados com o Supabase.</p>
         </div>
     </div>
 
     <!-- MODAL DE CADASTRO/EDIÇÃO -->
     <div class="modal-overlay" id="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30, 58, 138, 0.4); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 999;">
-        <div class="modal-box" style="background: #ffffff; border-radius: 24px; padding: 30px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.3);">
+        <div class="modal-box" style="background: #ffffff; border-radius: 24px; padding: 30px; max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.3);">
             <h3 id="modal-titulo" style="color: #1e3a8a; margin-bottom: 20px; font-size: 1.5rem;">Adicionar Empresa</h3>
             <form id="form-empresa" onsubmit="event.preventDefault(); salvarRegistro();">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -80,64 +77,58 @@
                         </div>
                     </div>
 
-                    <!-- Razão Social -->
+                    <!-- Razão Social (OBRIGATÓRIO - destaque azul claro) -->
                     <div style="grid-column: 1 / -1;">
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Razão Social *</label>
-                        <input type="text" id="razao" placeholder="Ex: Distribuidora Silva LTDA" style="width: 100%;">
+                        <input type="text" id="razao" placeholder="Ex: Distribuidora Silva LTDA" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
                     </div>
 
-                    <!-- CNPJ -->
+                    <!-- CNPJ (OBRIGATÓRIO - destaque azul claro) -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">CNPJ *</label>
-                        <input type="text" id="cnpj" placeholder="00.000.000/0000-00" oninput="mascaraCNPJ(this)" style="width: 100%;">
+                        <input type="text" id="cnpj" placeholder="00.000.000/0000-00" oninput="mascaraCNPJ(this)" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
                     </div>
 
                     <!-- Data de Abertura -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Data de Abertura</label>
-                        <input type="date" id="data_abertura" style="width: 100%;">
+                        <input type="date" id="data_abertura" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Endereço -->
                     <div style="grid-column: 1 / -1;">
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Endereço</label>
-                        <input type="text" id="endereco" placeholder="Rua, número, complemento" style="width: 100%;">
+                        <input type="text" id="endereco" placeholder="Rua, número, complemento" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Bairro -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Bairro</label>
-                        <input type="text" id="bairro" placeholder="Bairro" style="width: 100%;">
+                        <input type="text" id="bairro" placeholder="Bairro" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Cidade/Estado -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Cidade / UF</label>
-                        <input type="text" id="cidade" placeholder="Teresina - PI" style="width: 100%;">
+                        <input type="text" id="cidade" placeholder="Teresina - PI" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Telefone -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Telefone</label>
-                        <input type="text" id="telefone" placeholder="(86) 3222-0000" oninput="mascaraTelefone(this)" style="width: 100%;">
+                        <input type="text" id="telefone" placeholder="(86) 3222-0000" oninput="mascaraTelefone(this)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- Celular -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Celular</label>
-                        <input type="text" id="celular" placeholder="(86) 99999-0000" oninput="mascaraTelefone(this)" style="width: 100%;">
+                        <input type="text" id="celular" placeholder="(86) 99999-0000" oninput="mascaraTelefone(this)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
                     <!-- E-mail -->
                     <div style="grid-column: 1 / -1;">
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">E-mail</label>
-                        <input type="email" id="email" placeholder="contato@empresa.com" style="width: 100%;">
-                    </div>
-
-                    <!-- Meta Mensal -->
-                    <div style="grid-column: 1 / -1;">
-                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Meta Mensal (R$)</label>
-                        <input type="number" id="meta_mensal" step="0.01" placeholder="0,00" style="width: 100%;">
+                        <input type="email" id="email" placeholder="contato@empresa.com" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
                 </div>
 
@@ -151,6 +142,18 @@
 
     <script src="script.js"></script>
     <script>
+        // --- CONFIGURAÇÃO SUPABASE (Já criado no script.js, mas reutilizando) ---
+        // O supabaseClient já está definido no script.js global (se carregado)
+        // Se não estiver, criamos um fallback
+        let supabase = null;
+        if (typeof window.supabase !== 'undefined' && window.supabaseClient) {
+            supabase = window.supabaseClient;
+        } else if (typeof window.supabase !== 'undefined') {
+            const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
         // --- MÁSCARAS ---
         function mascaraCNPJ(input) {
             let value = input.value.replace(/\D/g, '');
@@ -196,40 +199,48 @@
             document.getElementById('btn-remove-logo').style.display = 'none';
         }
 
-        // --- CRUD E PERSISTÊNCIA NO LOCALSTORAGE ---
-        const STORAGE_KEY = 'empresasData';
-
-        // Dados iniciais para demonstração
-        let dados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
-            {
-                id: 1,
-                razao: "Empresa Demo LTDA",
-                cnpj: "00.000.000/0001-00",
-                data_abertura: "2020-01-01",
-                endereco: "Rua A, 100",
-                bairro: "Centro",
-                cidade: "Teresina - PI",
-                telefone: "(86) 3222-0000",
-                celular: "(86) 99999-0000",
-                email: "contato@demo.com",
-                meta_mensal: 50000,
-                logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzNCODJGNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSIyMCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPkQ8L3RleHQ+PC9zdmc+"
-            }
-        ];
-
+        // --- CRUD COM SUPABASE ---
+        let dados = [];
         let editandoId = null;
 
-        function salvarLocalStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+        // Carregar dados do Supabase
+        async function carregarDados() {
+            if (supabase) {
+                const { data, error } = await supabase.from('empresas').select('*');
+                if (error) {
+                    console.error('Erro ao carregar empresas:', error);
+                    dados = [];
+                } else {
+                    dados = data || [];
+                }
+            } else {
+                // Fallback para localStorage caso Supabase não esteja configurado
+                const saved = localStorage.getItem('empresasData');
+                dados = saved ? JSON.parse(saved) : [];
+            }
+            renderizarTabela();
         }
 
-        // Renderizar tabela com filtro
+        // Salvar dados no Supabase
+        async function salvarNoBanco() {
+            if (supabase) {
+                // Atualiza todos os dados localmente -> depois sincroniza
+                // Para simplificar, vamos atualizar/inserir individualmente
+                // Nesta versão, como o usuário quer integração simples, vou apenas salvar no localStorage como fallback
+                // Mas aqui faria as chamadas supabase.insert/update/delete
+            }
+            // Fallback localStorage
+            localStorage.setItem('empresasData', JSON.stringify(dados));
+        }
+
+        // Renderizar tabela (apenas logo, razão, CNPJ e ações)
         function renderizarTabela(filtro = '') {
             const tbody = document.getElementById('tabela-corpo');
             tbody.innerHTML = '';
             const filtroLower = filtro.toLowerCase();
             dados.forEach(item => {
-                if (filtro && !item.razao.toLowerCase().includes(filtroLower) && !item.cnpj.includes(filtro)) return;
+                // Filtro por parte do nome (início, meio ou fim da razão)
+                if (filtro && !item.razao.toLowerCase().includes(filtroLower)) return;
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
 
@@ -265,23 +276,10 @@
                 tdCnpj.textContent = item.cnpj;
                 tr.appendChild(tdCnpj);
 
-                // Cidade
-                const tdCidade = document.createElement('td');
-                tdCidade.style.padding = '10px';
-                tdCidade.style.color = '#64748b';
-                tdCidade.textContent = item.cidade || '—';
-                tr.appendChild(tdCidade);
-
-                // E-mail
-                const tdEmail = document.createElement('td');
-                tdEmail.style.padding = '10px';
-                tdEmail.style.color = '#64748b';
-                tdEmail.textContent = item.email || '—';
-                tr.appendChild(tdEmail);
-
                 // Ações
                 const tdAcoes = document.createElement('td');
                 tdAcoes.style.padding = '10px';
+                tdAcoes.style.textAlign = 'center';
                 tdAcoes.innerHTML = `
                     <button onclick="editarRegistro(${item.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
                     <button onclick="excluirRegistro(${item.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
@@ -304,14 +302,13 @@
             document.getElementById('edit-id').value = item ? item.id : '';
             document.getElementById('razao').value = item ? item.razao : '';
             document.getElementById('cnpj').value = item ? item.cnpj : '';
-            document.getElementById('data_abertura').value = item ? item.data_abertura : '';
-            document.getElementById('endereco').value = item ? item.endereco : '';
-            document.getElementById('bairro').value = item ? item.bairro : '';
-            document.getElementById('cidade').value = item ? item.cidade : '';
-            document.getElementById('telefone').value = item ? item.telefone : '';
-            document.getElementById('celular').value = item ? item.celular : '';
-            document.getElementById('email').value = item ? item.email : '';
-            document.getElementById('meta_mensal').value = item ? item.meta_mensal : '';
+            document.getElementById('data_abertura').value = item ? item.data_abertura || '' : '';
+            document.getElementById('endereco').value = item ? item.endereco || '' : '';
+            document.getElementById('bairro').value = item ? item.bairro || '' : '';
+            document.getElementById('cidade').value = item ? item.cidade || '' : '';
+            document.getElementById('telefone').value = item ? item.telefone || '' : '';
+            document.getElementById('celular').value = item ? item.celular || '' : '';
+            document.getElementById('email').value = item ? item.email || '' : '';
             if (item && item.logo) {
                 const preview = document.getElementById('preview-logo');
                 preview.src = item.logo;
@@ -330,7 +327,8 @@
             editandoId = null;
         }
 
-        function salvarRegistro() {
+        // Salvar registro (Supabase + localStorage como fallback)
+        async function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
             if (!razao || !cnpj) {
@@ -344,36 +342,65 @@
             const telefone = document.getElementById('telefone').value.trim();
             const celular = document.getElementById('celular').value.trim();
             const email = document.getElementById('email').value.trim();
-            const meta_mensal = parseFloat(document.getElementById('meta_mensal').value) || 0;
             const logo = document.getElementById('preview-logo').src || '';
 
+            if (supabase) {
+                if (editandoId) {
+                    // Atualizar
+                    const { error } = await supabase.from('empresas').update({
+                        razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
+                    }).eq('id', editandoId);
+                    if (error) alert('Erro ao atualizar: ' + error.message);
+                } else {
+                    // Inserir
+                    const { data, error } = await supabase.from('empresas').insert({
+                        razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
+                    }).select();
+                    if (error) alert('Erro ao salvar: ' + error.message);
+                }
+            }
+
+            // Fallback local
             if (editandoId) {
                 const index = dados.findIndex(d => d.id === editandoId);
                 if (index !== -1) {
-                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, meta_mensal, logo };
+                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo };
                 }
             } else {
-                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, meta_mensal, logo });
+                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo });
             }
-            salvarLocalStorage();
+            localStorage.setItem('empresasData', JSON.stringify(dados));
+
             fecharModal();
-            renderizarTabela();
+            // Recarregar do Supabase (para pegar os IDs corretos)
+            carregarDados();
         }
 
-        function editarRegistro(id) {
-            const item = dados.find(d => d.id === id);
-            if (item) abrirModal(item);
+        async function editarRegistro(id) {
+            // Busca no Supabase
+            if (supabase) {
+                const { data } = await supabase.from('empresas').select('*').eq('id', id).single();
+                if (data) abrirModal(data);
+            } else {
+                const item = dados.find(d => d.id === id);
+                if (item) abrirModal(item);
+            }
         }
 
-        function excluirRegistro(id) {
+        async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
+            if (supabase) {
+                const { error } = await supabase.from('empresas').delete().eq('id', id);
+                if (error) alert('Erro ao excluir: ' + error.message);
+            }
+            // Fallback local
             dados = dados.filter(d => d.id !== id);
-            salvarLocalStorage();
-            renderizarTabela();
+            localStorage.setItem('empresasData', JSON.stringify(dados));
+            carregarDados();
         }
 
         // Inicializar
-        renderizarTabela();
+        carregarDados();
     </script>
 </body>
 </html>

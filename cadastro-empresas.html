@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Empresas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="watermark"></div>
+
+    <div class="container-center" style="justify-content: flex-start; padding-top: 80px;">
+        <a href="home.html" style="position: absolute; top: 25px; left: 30px; color: #3b82f6; text-decoration: none; border: 1px solid rgba(59,130,246,0.2); padding: 10px 18px; border-radius: 50px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 700px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15);">
+            <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 20px;">Cadastrar Nova Empresa</h2>
+            
+            <form id="empresaForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="color: #64748b; font-weight: 500;">Nome da Empresa</label>
+                    <input type="text" id="empresaNome" placeholder="Ex: Distribuidora Silva" required>
+                </div>
+                <div>
+                    <label style="color: #64748b; font-weight: 500;">CNPJ</label>
+                    <input type="text" id="empresaCnpj" placeholder="00.000.000/0000-00" required>
+                </div>
+                <div>
+                    <label style="color: #64748b; font-weight: 500;">Cor da Identidade</label>
+                    <input type="color" id="empresaCor" value="#1e3a8a">
+                </div>
+                <p id="empresaMsg" style="text-align: center; display: none;"></p>
+                <button type="submit" class="btn-primary">Salvar Empresa</button>
+            </form>
+
+            <hr style="border: none; border-top: 1px solid #e0f2fe; margin: 30px 0;">
+
+            <h3 style="color: #1e3a8a; margin-bottom: 15px;">Empresas Cadastradas</h3>
+            <div id="listaEmpresas" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderEmpresas();
+        });
+
+        document.getElementById('empresaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nome = document.getElementById('empresaNome').value;
+            const cnpj = document.getElementById('empresaCnpj').value;
+            const cor = document.getElementById('empresaCor').value;
+
+            let empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+            const novoId = empresas.length > 0 ? Math.max(...empresas.map(e => e.id)) + 1 : 1;
+            empresas.push({ id: novoId, nome, cnpj, cor });
+            localStorage.setItem('empresas', JSON.stringify(empresas));
+
+            document.getElementById('empresaMsg').innerHTML = '<i class="fas fa-check-circle"></i> Empresa cadastrada com sucesso!';
+            document.getElementById('empresaMsg').style.color = '#22c55e';
+            document.getElementById('empresaMsg').style.display = 'block';
+            document.getElementById('empresaForm').reset();
+            renderEmpresas();
+            setTimeout(() => { document.getElementById('empresaMsg').style.display = 'none'; }, 3000);
+        });
+
+        function renderEmpresas() {
+            const lista = document.getElementById('listaEmpresas');
+            const empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+            lista.innerHTML = '';
+            empresas.forEach(emp => {
+                const item = document.createElement('div');
+                item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f0f9ff; border-radius: 8px;';
+                item.innerHTML = `
+                    <div>
+                        <strong style="color: #1e3a8a;">${emp.nome}</strong><br>
+                        <span style="color: #64748b; font-size: 0.85rem;">${emp.cnpj}</span>
+                    </div>
+                    <button onclick="excluirEmpresa(${emp.id})" style="background: transparent; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                `;
+                lista.appendChild(item);
+            });
+        }
+
+        function excluirEmpresa(id) {
+            if (!confirm('Deseja excluir esta empresa?')) return;
+            let empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+            empresas = empresas.filter(e => e.id !== id);
+            localStorage.setItem('empresas', JSON.stringify(empresas));
+            renderEmpresas();
+        }
+    </script>
+</body>
+</html>

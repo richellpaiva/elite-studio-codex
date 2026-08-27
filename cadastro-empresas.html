@@ -35,7 +35,7 @@
                 <input type="text" id="buscaEmpresa" placeholder="Pesquisar por Razão Social..." oninput="filtrarTabela()" style="max-width: 350px; flex: 1; background: rgba(255,255,255,0.9); border: 1px solid rgba(59,130,246,0.2); border-radius: 50px; padding: 10px 20px; color: #1e3a8a; outline: none; font-size: 0.95rem;">
             </div>
 
-            <!-- Tabela de Empresas (apenas logo, razão, CNPJ e ações) -->
+            <!-- Tabela de Empresas -->
             <div style="max-height: 500px; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; background: rgba(255,255,255,0.6);">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; z-index: 10;">
@@ -56,7 +56,7 @@
         </div>
     </div>
 
-    <!-- MODAL DE CADASTRO/EDIÇÃO -->
+    <!-- MODAL -->
     <div class="modal-overlay" id="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30, 58, 138, 0.4); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 999;">
         <div class="modal-box" style="background: #ffffff; border-radius: 24px; padding: 30px; max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.3);">
             <h3 id="modal-titulo" style="color: #1e3a8a; margin-bottom: 20px; font-size: 1.5rem;">Adicionar Empresa</h3>
@@ -142,16 +142,13 @@
 
     <script src="script.js"></script>
     <script>
-        // --- CONFIGURAÇÃO SUPABASE (Já criado no script.js, mas reutilizando) ---
-        // O supabaseClient já está definido no script.js global (se carregado)
-        // Se não estiver, criamos um fallback
-        let supabase = null;
-        if (typeof window.supabase !== 'undefined' && window.supabaseClient) {
-            supabase = window.supabaseClient;
-        } else if (typeof window.supabase !== 'undefined') {
+        // Usa o cliente Supabase que já foi criado no script.js (supabaseClient)
+        // Se não existir, tenta criar um novo (mas sem conflitar com o nome 'supabase')
+        let supabaseClient = window.supabaseClient || null;
+        if (!supabaseClient && typeof window.supabase !== 'undefined') {
             const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
 
         // --- MÁSCARAS ---
@@ -205,8 +202,8 @@
 
         // Carregar dados do Supabase
         async function carregarDados() {
-            if (supabase) {
-                const { data, error } = await supabase.from('empresas').select('*');
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.from('empresas').select('*');
                 if (error) {
                     console.error('Erro ao carregar empresas:', error);
                     dados = [];
@@ -214,32 +211,18 @@
                     dados = data || [];
                 }
             } else {
-                // Fallback para localStorage caso Supabase não esteja configurado
                 const saved = localStorage.getItem('empresasData');
                 dados = saved ? JSON.parse(saved) : [];
             }
             renderizarTabela();
         }
 
-        // Salvar dados no Supabase
-        async function salvarNoBanco() {
-            if (supabase) {
-                // Atualiza todos os dados localmente -> depois sincroniza
-                // Para simplificar, vamos atualizar/inserir individualmente
-                // Nesta versão, como o usuário quer integração simples, vou apenas salvar no localStorage como fallback
-                // Mas aqui faria as chamadas supabase.insert/update/delete
-            }
-            // Fallback localStorage
-            localStorage.setItem('empresasData', JSON.stringify(dados));
-        }
-
-        // Renderizar tabela (apenas logo, razão, CNPJ e ações)
+        // Renderizar tabela
         function renderizarTabela(filtro = '') {
             const tbody = document.getElementById('tabela-corpo');
             tbody.innerHTML = '';
             const filtroLower = filtro.toLowerCase();
             dados.forEach(item => {
-                // Filtro por parte do nome (início, meio ou fim da razão)
                 if (filtro && !item.razao.toLowerCase().includes(filtroLower)) return;
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
@@ -295,7 +278,7 @@
             renderizarTabela(filtro);
         }
 
-        // Abrir modal (para adicionar ou editar)
+        // Abrir modal
         function abrirModal(item = null) {
             document.getElementById('modal').style.display = 'flex';
             document.getElementById('modal-titulo').textContent = item ? 'Editar Empresa' : 'Adicionar Empresa';
@@ -327,7 +310,7 @@
             editandoId = null;
         }
 
-        // Salvar registro (Supabase + localStorage como fallback)
+        // Salvar registro
         async function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
@@ -344,18 +327,16 @@
             const email = document.getElementById('email').value.trim();
             const logo = document.getElementById('preview-logo').src || '';
 
-            if (supabase) {
+            if (supabaseClient) {
                 if (editandoId) {
-                    // Atualizar
-                    const { error } = await supabase.from('empresas').update({
+                    const { error } = await supabaseClient.from('empresas').update({
                         razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
                     }).eq('id', editandoId);
                     if (error) alert('Erro ao atualizar: ' + error.message);
                 } else {
-                    // Inserir
-                    const { data, error } = await supabase.from('empresas').insert({
+                    const { error } = await supabaseClient.from('empresas').insert({
                         razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
-                    }).select();
+                    });
                     if (error) alert('Erro ao salvar: ' + error.message);
                 }
             }
@@ -372,14 +353,12 @@
             localStorage.setItem('empresasData', JSON.stringify(dados));
 
             fecharModal();
-            // Recarregar do Supabase (para pegar os IDs corretos)
             carregarDados();
         }
 
         async function editarRegistro(id) {
-            // Busca no Supabase
-            if (supabase) {
-                const { data } = await supabase.from('empresas').select('*').eq('id', id).single();
+            if (supabaseClient) {
+                const { data } = await supabaseClient.from('empresas').select('*').eq('id', id).single();
                 if (data) abrirModal(data);
             } else {
                 const item = dados.find(d => d.id === id);
@@ -389,11 +368,10 @@
 
         async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            if (supabase) {
-                const { error } = await supabase.from('empresas').delete().eq('id', id);
+            if (supabaseClient) {
+                const { error } = await supabaseClient.from('empresas').delete().eq('id', id);
                 if (error) alert('Erro ao excluir: ' + error.message);
             }
-            // Fallback local
             dados = dados.filter(d => d.id !== id);
             localStorage.setItem('empresasData', JSON.stringify(dados));
             carregarDados();

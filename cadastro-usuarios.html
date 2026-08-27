@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Usuários</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="watermark"></div>
+
+    <div class="container-center" style="justify-content: flex-start; padding-top: 60px;">
+        <a href="home.html" style="position: absolute; top: 25px; left: 30px; color: #3b82f6; text-decoration: none; transition: 0.3s; border: 1px solid rgba(59,130,246,0.2); padding: 10px 16px; border-radius: 50px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 500px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <i class="fas fa-user-plus" style="font-size: 40px; color: #3b82f6;"></i>
+                <h2 style="color: #1e3a8a; margin-top: 15px;">Cadastrar Novo Usuário</h2>
+            </div>
+
+            <form id="cadastroForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Nome do Usuário</label>
+                    <input type="text" id="nome" placeholder="Ex: João Silva" required>
+                </div>
+                <div>
+                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Login</label>
+                    <input type="text" id="login" placeholder="Login de acesso" required>
+                </div>
+                <div>
+                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Senha</label>
+                    <input type="password" id="senha" placeholder="Senha de acesso" required>
+                </div>
+
+                <p id="cadastroError" style="color: #ef4444; font-size: 0.9rem; display: none; text-align: center;">
+                    <i class="fas fa-exclamation-circle"></i> Este login já existe!
+                </p>
+                <p id="cadastroSucesso" style="color: #22c55e; font-size: 0.9rem; display: none; text-align: center;">
+                    <i class="fas fa-check-circle"></i> Usuário cadastrado com sucesso!
+                </p>
+
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+                    <i class="fas fa-save"></i> Salvar Usuário
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('cadastroForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const nome = document.getElementById('nome').value;
+            const login = document.getElementById('login').value;
+            const senha = document.getElementById('senha').value;
+            
+            let users = JSON.parse(localStorage.getItem('users')) || [];
+            
+            const existe = users.find(u => u.login === login);
+            if (existe) {
+                document.getElementById('cadastroError').style.display = 'block';
+                document.getElementById('cadastroSucesso').style.display = 'none';
+                return;
+            }
+
+            users.push({ login, pass: senha, name: nome });
+            localStorage.setItem('users', JSON.stringify(users));
+
+            document.getElementById('cadastroError').style.display = 'none';
+            document.getElementById('cadastroSucesso').style.display = 'block';
+            document.getElementById('cadastroForm').reset();
+
+            setTimeout(() => {
+                document.getElementById('cadastroSucesso').style.display = 'none';
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

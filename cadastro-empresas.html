@@ -142,14 +142,9 @@
 
     <script src="script.js"></script>
     <script>
-        // Usa o cliente Supabase que já foi criado no script.js (supabaseClient)
-        // Se não existir, tenta criar um novo (mas sem conflitar com o nome 'supabase')
-        let supabaseClient = window.supabaseClient || null;
-        if (!supabaseClient && typeof window.supabase !== 'undefined') {
-            const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        }
+        // Usa o supabaseClient global que já foi criado no script.js
+        // Sem redeclarar a variável (evita o erro "already been declared")
+        const dbClient = window.supabaseClient || null;
 
         // --- MÁSCARAS ---
         function mascaraCNPJ(input) {
@@ -202,8 +197,8 @@
 
         // Carregar dados do Supabase
         async function carregarDados() {
-            if (supabaseClient) {
-                const { data, error } = await supabaseClient.from('empresas').select('*');
+            if (dbClient) {
+                const { data, error } = await dbClient.from('empresas').select('*');
                 if (error) {
                     console.error('Erro ao carregar empresas:', error);
                     dados = [];
@@ -327,14 +322,14 @@
             const email = document.getElementById('email').value.trim();
             const logo = document.getElementById('preview-logo').src || '';
 
-            if (supabaseClient) {
+            if (dbClient) {
                 if (editandoId) {
-                    const { error } = await supabaseClient.from('empresas').update({
+                    const { error } = await dbClient.from('empresas').update({
                         razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
                     }).eq('id', editandoId);
                     if (error) alert('Erro ao atualizar: ' + error.message);
                 } else {
-                    const { error } = await supabaseClient.from('empresas').insert({
+                    const { error } = await dbClient.from('empresas').insert({
                         razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, logo
                     });
                     if (error) alert('Erro ao salvar: ' + error.message);
@@ -357,8 +352,8 @@
         }
 
         async function editarRegistro(id) {
-            if (supabaseClient) {
-                const { data } = await supabaseClient.from('empresas').select('*').eq('id', id).single();
+            if (dbClient) {
+                const { data } = await dbClient.from('empresas').select('*').eq('id', id).single();
                 if (data) abrirModal(data);
             } else {
                 const item = dados.find(d => d.id === id);
@@ -368,8 +363,8 @@
 
         async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            if (supabaseClient) {
-                const { error } = await supabaseClient.from('empresas').delete().eq('id', id);
+            if (dbClient) {
+                const { error } = await dbClient.from('empresas').delete().eq('id', id);
                 if (error) alert('Erro ao excluir: ' + error.message);
             }
             dados = dados.filter(d => d.id !== id);

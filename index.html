@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Auditoria</title>
+    <title>Acessar Empresas - Sistema de Auditoria</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <!-- IMPORTANTE: Biblioteca do Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -14,9 +13,8 @@
 
     <div class="container-center" style="max-width: 420px; margin: 0 auto;">
         <div style="text-align: center; margin-bottom: 30px;">
-            <!-- LOGO PRINCIPAL (Oficial) -->
             <img src="logo-principal.png" alt="Logo Principal" style="height: 160px; width: auto; margin-bottom: 15px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(59,130,246,0.3));">
-            <h2 style="color: #1e3a8a; margin-top: 0; font-weight: 700; letter-spacing: 1px;">Acessar Sistema</h2>
+            <h2 style="color: #1e3a8a; margin-top: 0; font-weight: 700; letter-spacing: 1px;">Acessar Empresas</h2>
         </div>
 
         <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); border: 1px solid rgba(59,130,246,0.2); padding: 40px; border-radius: 24px; width: 100%; box-shadow: 0 20px 60px rgba(31,38,135,0.15);">
@@ -42,9 +40,16 @@
     <script src="script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Dados iniciais para demonstração (empresa padrão e usuário admin)
+            let empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+            if (empresas.length === 0) {
+                empresas.push({ id: 1, nome: 'Empresa Demo', cnpj: '00.000.000/0001-00', cor: '#1e3a8a' });
+                localStorage.setItem('empresas', JSON.stringify(empresas));
+            }
+
             let users = JSON.parse(localStorage.getItem('users')) || [];
             if (users.length === 0) {
-                users.push({ login: 'RICHELL', pass: '951', name: 'Administrador' });
+                users.push({ login: 'RICHELL', pass: '951', name: 'Administrador', empresaId: 1 });
                 localStorage.setItem('users', JSON.stringify(users));
             }
         });

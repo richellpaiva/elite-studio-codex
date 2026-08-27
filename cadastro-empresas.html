@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro de Usuários</title>
+    <title>Cadastro de Empresas</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <script>
+        // Proteção: se não estiver logado, volta para o login
         if (localStorage.getItem('isLoggedIn') !== 'true') {
             window.location.href = 'index.html';
         }
@@ -17,87 +18,362 @@
 
     <div class="watermark"></div>
 
-    <div class="container-center" style="justify-content: flex-start; padding-top: 60px;">
-        <a href="home.html" style="position: absolute; top: 25px; left: 30px; color: #3b82f6; text-decoration: none; border: 1px solid rgba(59,130,246,0.2); padding: 10px 16px; border-radius: 50px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);">
+    <div class="container-center" style="justify-content: flex-start; padding-top: 80px;">
+        <a href="home.html" style="position: absolute; top: 25px; left: 30px; color: #3b82f6; text-decoration: none; transition: 0.3s; border: 1px solid rgba(59,130,246,0.2); padding: 10px 18px; border-radius: 50px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px; font-weight: 500;">
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
-        
-        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 500px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15);">
-            <div style="text-align: center; margin-bottom: 25px;">
-                <i class="fas fa-user-plus" style="font-size: 40px; color: #3b82f6;"></i>
-                <h2 style="color: #1e3a8a; margin-top: 15px;">Cadastrar Novo Usuário</h2>
+
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1200px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
+
+            <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 10px;">Cadastro de Empresas</h2>
+            <p style="color: #64748b; text-align: center; margin-bottom: 30px;">Gerencie as empresas cadastradas no sistema</p>
+
+            <!-- Barra de Ações -->
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; justify-content: space-between;">
+                <button onclick="abrirModal()" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;">
+                    <i class="fas fa-plus"></i> Adicionar Empresa
+                </button>
+                <input type="text" id="buscaEmpresa" placeholder="Buscar por nome ou CNPJ..." oninput="filtrarTabela()" style="max-width: 300px; flex: 1; background: rgba(255,255,255,0.9); border: 1px solid rgba(59,130,246,0.2); border-radius: 50px; padding: 10px 20px; color: #1e3a8a; outline: none; font-size: 0.95rem;">
             </div>
 
-            <form id="cadastroForm" style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Nome do Usuário</label>
-                    <input type="text" id="nome" placeholder="Ex: João Silva" required>
-                </div>
-                <div>
-                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Login</label>
-                    <input type="text" id="login" placeholder="Login de acesso" required>
-                </div>
-                <div>
-                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Senha</label>
-                    <input type="password" id="senha" placeholder="Senha de acesso" required>
-                </div>
-                <div>
-                    <label style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Empresa</label>
-                    <select id="empresaSelect" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%;" required>
-                        <option value="">Selecione...</option>
-                    </select>
+            <!-- Tabela de Empresas -->
+            <div style="max-height: 500px; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; background: rgba(255,255,255,0.6);">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; z-index: 10;">
+                        <tr>
+                            <th style="padding: 15px; font-weight: 600;">Logo</th>
+                            <th style="padding: 15px; font-weight: 600;">Razão Social</th>
+                            <th style="padding: 15px; font-weight: 600;">CNPJ</th>
+                            <th style="padding: 15px; font-weight: 600;">Cidade</th>
+                            <th style="padding: 15px; font-weight: 600;">E-mail</th>
+                            <th style="padding: 15px; font-weight: 600;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-corpo">
+                        <!-- Linhas geradas via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados armazenados localmente no navegador (localStorage).</p>
+        </div>
+    </div>
+
+    <!-- MODAL DE CADASTRO/EDIÇÃO -->
+    <div class="modal-overlay" id="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30, 58, 138, 0.4); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 999;">
+        <div class="modal-box" style="background: #ffffff; border-radius: 24px; padding: 30px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.3);">
+            <h3 id="modal-titulo" style="color: #1e3a8a; margin-bottom: 20px; font-size: 1.5rem;">Adicionar Empresa</h3>
+            <form id="form-empresa" onsubmit="event.preventDefault(); salvarRegistro();">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <!-- Upload de Logo -->
+                    <div style="grid-column: 1 / -1;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 8px;">Logo da Empresa</label>
+                        <div style="display: flex; align-items: center; gap: 15px; background: rgba(240,249,255,0.8); padding: 15px; border-radius: 12px; border: 1px dashed rgba(59,130,246,0.3);">
+                            <input type="file" id="input-logo" accept="image/*" style="display: none;" onchange="previewLogo(event)">
+                            <button type="button" onclick="document.getElementById('input-logo').click()" class="btn-outline" style="font-size: 0.9rem;">
+                                <i class="fas fa-upload"></i> Escolher Imagem
+                            </button>
+                            <div style="position: relative;">
+                                <img id="preview-logo" src="" alt="Preview" style="display: none; width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #ccc;">
+                                <span id="btn-remove-logo" onclick="removerImagem()" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 20px; text-align: center;">×</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Razão Social -->
+                    <div style="grid-column: 1 / -1;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Razão Social *</label>
+                        <input type="text" id="razao" placeholder="Ex: Distribuidora Silva LTDA" style="width: 100%;">
+                    </div>
+
+                    <!-- CNPJ -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">CNPJ *</label>
+                        <input type="text" id="cnpj" placeholder="00.000.000/0000-00" oninput="mascaraCNPJ(this)" style="width: 100%;">
+                    </div>
+
+                    <!-- Data de Abertura -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Data de Abertura</label>
+                        <input type="date" id="data_abertura" style="width: 100%;">
+                    </div>
+
+                    <!-- Endereço -->
+                    <div style="grid-column: 1 / -1;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Endereço</label>
+                        <input type="text" id="endereco" placeholder="Rua, número, complemento" style="width: 100%;">
+                    </div>
+
+                    <!-- Bairro -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Bairro</label>
+                        <input type="text" id="bairro" placeholder="Bairro" style="width: 100%;">
+                    </div>
+
+                    <!-- Cidade/Estado -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Cidade / UF</label>
+                        <input type="text" id="cidade" placeholder="Teresina - PI" style="width: 100%;">
+                    </div>
+
+                    <!-- Telefone -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Telefone</label>
+                        <input type="text" id="telefone" placeholder="(86) 3222-0000" oninput="mascaraTelefone(this)" style="width: 100%;">
+                    </div>
+
+                    <!-- Celular -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Celular</label>
+                        <input type="text" id="celular" placeholder="(86) 99999-0000" oninput="mascaraTelefone(this)" style="width: 100%;">
+                    </div>
+
+                    <!-- E-mail -->
+                    <div style="grid-column: 1 / -1;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">E-mail</label>
+                        <input type="email" id="email" placeholder="contato@empresa.com" style="width: 100%;">
+                    </div>
+
+                    <!-- Meta Mensal -->
+                    <div style="grid-column: 1 / -1;">
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Meta Mensal (R$)</label>
+                        <input type="number" id="meta_mensal" step="0.01" placeholder="0,00" style="width: 100%;">
+                    </div>
                 </div>
 
-                <p id="cadastroError" style="color: #ef4444; font-size: 0.9rem; display: none; text-align: center;">
-                    <i class="fas fa-exclamation-circle"></i> Este login já existe!
-                </p>
-                <p id="cadastroSucesso" style="color: #22c55e; font-size: 0.9rem; display: none; text-align: center;">
-                    <i class="fas fa-check-circle"></i> Usuário cadastrado com sucesso!
-                </p>
-
-                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
-                    <i class="fas fa-save"></i> Salvar Usuário
-                </button>
+                <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px;">
+                    <button type="button" onclick="fecharModal()" class="btn-outline">Cancelar</button>
+                    <button type="submit" class="btn-primary"><i class="fas fa-check"></i> Salvar</button>
+                </div>
             </form>
         </div>
     </div>
 
     <script src="script.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const empresas = JSON.parse(localStorage.getItem('empresas')) || [];
-            const select = document.getElementById('empresaSelect');
-            empresas.forEach(emp => {
-                const option = document.createElement('option');
-                option.value = emp.id;
-                option.textContent = emp.nome;
-                select.appendChild(option);
-            });
-        });
+        // --- MÁSCARAS ---
+        function mascaraCNPJ(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 14) value = value.slice(0, 14);
+            value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+            value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+            value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+            value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            input.value = value;
+        }
 
-        document.getElementById('cadastroForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const nome = document.getElementById('nome').value;
-            const login = document.getElementById('login').value;
-            const senha = document.getElementById('senha').value;
-            const empresaId = parseInt(document.getElementById('empresaSelect').value);
-            
-            let users = JSON.parse(localStorage.getItem('users')) || [];
-            const existe = users.find(u => u.login === login);
-            if (existe) {
-                document.getElementById('cadastroError').style.display = 'block';
-                document.getElementById('cadastroSucesso').style.display = 'none';
+        function mascaraTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 2) {
+                value = '(' + value.substring(0, 2) + ') ' + value.substring(2);
+            }
+            if (value.length > 10) {
+                value = value.substring(0, 10) + '-' + value.substring(10);
+            }
+            input.value = value;
+        }
+
+        // --- UPLOAD E PREVIEW DA LOGO ---
+        function previewLogo(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('preview-logo');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                document.getElementById('btn-remove-logo').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removerImagem() {
+            const preview = document.getElementById('preview-logo');
+            preview.src = '';
+            preview.style.display = 'none';
+            document.getElementById('input-logo').value = '';
+            document.getElementById('btn-remove-logo').style.display = 'none';
+        }
+
+        // --- CRUD E PERSISTÊNCIA NO LOCALSTORAGE ---
+        const STORAGE_KEY = 'empresasData';
+
+        // Dados iniciais para demonstração
+        let dados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
+            {
+                id: 1,
+                razao: "Empresa Demo LTDA",
+                cnpj: "00.000.000/0001-00",
+                data_abertura: "2020-01-01",
+                endereco: "Rua A, 100",
+                bairro: "Centro",
+                cidade: "Teresina - PI",
+                telefone: "(86) 3222-0000",
+                celular: "(86) 99999-0000",
+                email: "contato@demo.com",
+                meta_mensal: 50000,
+                logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzNCODJGNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSIyMCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPkQ8L3RleHQ+PC9zdmc+"
+            }
+        ];
+
+        let editandoId = null;
+
+        function salvarLocalStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+        }
+
+        // Renderizar tabela com filtro
+        function renderizarTabela(filtro = '') {
+            const tbody = document.getElementById('tabela-corpo');
+            tbody.innerHTML = '';
+            const filtroLower = filtro.toLowerCase();
+            dados.forEach(item => {
+                if (filtro && !item.razao.toLowerCase().includes(filtroLower) && !item.cnpj.includes(filtro)) return;
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
+
+                // Logo
+                const tdLogo = document.createElement('td');
+                tdLogo.style.padding = '10px';
+                if (item.logo && item.logo.trim() !== '') {
+                    const img = document.createElement('img');
+                    img.src = item.logo;
+                    img.style.width = '50px';
+                    img.style.height = '50px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.border = '1px solid #e0f2fe';
+                    tdLogo.appendChild(img);
+                } else {
+                    tdLogo.innerHTML = '<div style="width:50px;height:50px;background:#e0f2fe;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#3b82f6;"><i class="fas fa-building"></i></div>';
+                }
+                tr.appendChild(tdLogo);
+
+                // Razão Social
+                const tdRazao = document.createElement('td');
+                tdRazao.style.padding = '10px';
+                tdRazao.style.color = '#1e3a8a';
+                tdRazao.style.fontWeight = '600';
+                tdRazao.textContent = item.razao;
+                tr.appendChild(tdRazao);
+
+                // CNPJ
+                const tdCnpj = document.createElement('td');
+                tdCnpj.style.padding = '10px';
+                tdCnpj.style.color = '#64748b';
+                tdCnpj.textContent = item.cnpj;
+                tr.appendChild(tdCnpj);
+
+                // Cidade
+                const tdCidade = document.createElement('td');
+                tdCidade.style.padding = '10px';
+                tdCidade.style.color = '#64748b';
+                tdCidade.textContent = item.cidade || '—';
+                tr.appendChild(tdCidade);
+
+                // E-mail
+                const tdEmail = document.createElement('td');
+                tdEmail.style.padding = '10px';
+                tdEmail.style.color = '#64748b';
+                tdEmail.textContent = item.email || '—';
+                tr.appendChild(tdEmail);
+
+                // Ações
+                const tdAcoes = document.createElement('td');
+                tdAcoes.style.padding = '10px';
+                tdAcoes.innerHTML = `
+                    <button onclick="editarRegistro(${item.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
+                    <button onclick="excluirRegistro(${item.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
+                `;
+                tr.appendChild(tdAcoes);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarTabela() {
+            const filtro = document.getElementById('buscaEmpresa').value;
+            renderizarTabela(filtro);
+        }
+
+        // Abrir modal (para adicionar ou editar)
+        function abrirModal(item = null) {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('modal-titulo').textContent = item ? 'Editar Empresa' : 'Adicionar Empresa';
+            document.getElementById('edit-id').value = item ? item.id : '';
+            document.getElementById('razao').value = item ? item.razao : '';
+            document.getElementById('cnpj').value = item ? item.cnpj : '';
+            document.getElementById('data_abertura').value = item ? item.data_abertura : '';
+            document.getElementById('endereco').value = item ? item.endereco : '';
+            document.getElementById('bairro').value = item ? item.bairro : '';
+            document.getElementById('cidade').value = item ? item.cidade : '';
+            document.getElementById('telefone').value = item ? item.telefone : '';
+            document.getElementById('celular').value = item ? item.celular : '';
+            document.getElementById('email').value = item ? item.email : '';
+            document.getElementById('meta_mensal').value = item ? item.meta_mensal : '';
+            if (item && item.logo) {
+                const preview = document.getElementById('preview-logo');
+                preview.src = item.logo;
+                preview.style.display = 'block';
+                document.getElementById('btn-remove-logo').style.display = 'block';
+            } else {
+                removerImagem();
+            }
+            editandoId = item ? item.id : null;
+        }
+
+        function fecharModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('form-empresa').reset();
+            removerImagem();
+            editandoId = null;
+        }
+
+        function salvarRegistro() {
+            const razao = document.getElementById('razao').value.trim();
+            const cnpj = document.getElementById('cnpj').value.trim();
+            if (!razao || !cnpj) {
+                alert('Preencha Razão Social e CNPJ.');
                 return;
             }
+            const data_abertura = document.getElementById('data_abertura').value;
+            const endereco = document.getElementById('endereco').value.trim();
+            const bairro = document.getElementById('bairro').value.trim();
+            const cidade = document.getElementById('cidade').value.trim();
+            const telefone = document.getElementById('telefone').value.trim();
+            const celular = document.getElementById('celular').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const meta_mensal = parseFloat(document.getElementById('meta_mensal').value) || 0;
+            const logo = document.getElementById('preview-logo').src || '';
 
-            users.push({ login, pass: senha, name: nome, empresaId });
-            localStorage.setItem('users', JSON.stringify(users));
+            if (editandoId) {
+                const index = dados.findIndex(d => d.id === editandoId);
+                if (index !== -1) {
+                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, meta_mensal, logo };
+                }
+            } else {
+                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, bairro, cidade, telefone, celular, email, meta_mensal, logo });
+            }
+            salvarLocalStorage();
+            fecharModal();
+            renderizarTabela();
+        }
 
-            document.getElementById('cadastroError').style.display = 'none';
-            document.getElementById('cadastroSucesso').style.display = 'block';
-            document.getElementById('cadastroForm').reset();
-            setTimeout(() => { document.getElementById('cadastroSucesso').style.display = 'none'; }, 3000);
-        });
+        function editarRegistro(id) {
+            const item = dados.find(d => d.id === id);
+            if (item) abrirModal(item);
+        }
+
+        function excluirRegistro(id) {
+            if (!confirm('Deseja excluir esta empresa?')) return;
+            dados = dados.filter(d => d.id !== id);
+            salvarLocalStorage();
+            renderizarTabela();
+        }
+
+        // Inicializar
+        renderizarTabela();
     </script>
 </body>
 </html>

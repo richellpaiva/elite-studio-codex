@@ -4,10 +4,10 @@
 const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
 
-// Verifica se a biblioteca do Supabase foi carregada antes de usar
-let supabase = null;
+// Renomeado para supabaseClient para evitar conflito de declaração
+let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } else {
     console.warn("Biblioteca Supabase não carregada. O sistema continuará funcionando localmente.");
 }
@@ -107,11 +107,11 @@ let currentFilters = {};
 let modalColumnIndex = null; 
 let modalSortDir = null;
 
-// Carrega dados do banco ao abrir a página (apenas se supabase estiver disponível)
+// Carrega dados do banco ao abrir a página (apenas se supabaseClient estiver disponível)
 async function loadFromDatabase() {
-    if (!supabase) return; // Se não carregou, ignora
+    if (!supabaseClient) return;
 
-    const { data, error } = await supabase.from('relatorio_1707').select('*').order('id');
+    const { data, error } = await supabaseClient.from('relatorio_1707').select('*').order('id');
     if (error) {
         console.error('Erro ao carregar do banco:', error);
         alert('Erro ao carregar dados do banco.');
@@ -128,33 +128,29 @@ async function loadFromDatabase() {
     }
 }
 
-// Chama a função ao abrir a página de importação
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('previewContainer')) {
         loadFromDatabase();
     }
 });
 
-// Salva os dados no banco (apaga tudo e insere novos)
 async function saveToDatabase(data) {
-    if (!supabase) {
+    if (!supabaseClient) {
         alert("Biblioteca Supabase não carregada. Dados salvos localmente.");
         return;
     }
 
-    // Primeiro apaga todos os registros
-    const { error: deleteError } = await supabase.from('relatorio_1707').delete().neq('id', 0);
+    const { error: deleteError } = await supabaseClient.from('relatorio_1707').delete().neq('id', 0);
     if (deleteError) {
         console.error('Erro ao apagar dados:', deleteError);
         alert('Erro ao apagar dados antigos.');
         return;
     }
 
-    // Insere os novos dados (em blocos para não estourar limites)
     const CHUNK_SIZE = 500;
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
         const chunk = data.slice(i, i + CHUNK_SIZE);
-        const { error: insertError } = await supabase.from('relatorio_1707').insert(chunk);
+        const { error: insertError } = await supabaseClient.from('relatorio_1707').insert(chunk);
         if (insertError) {
             console.error('Erro ao inserir dados:', insertError);
             alert('Erro ao salvar dados no banco.');
@@ -256,7 +252,6 @@ function handleFileUpload(file) {
                 if (endIdx < totalLines) {
                     setTimeout(() => processChunk(endIdx), 15);
                 } else {
-                    // Salva no banco de dados (se disponível)
                     saveToDatabase(parsedData);
                     
                     currentParsedData = parsedData;

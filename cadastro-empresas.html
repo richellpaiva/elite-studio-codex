@@ -48,7 +48,7 @@
                 </table>
             </div>
 
-            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados sincronizados com o Supabase.</p>
+            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados armazenados no navegador (localStorage).</p>
         </div>
     </div>
 
@@ -133,11 +133,8 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
     <script>
-        // Usa o cliente global que foi criado no script.js
-        const dbClient = window.supabaseClient;
-
+        // --- MÁSCARAS ---
         function mascaraCNPJ(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 14) value = value.slice(0, 14);
@@ -160,6 +157,7 @@
             input.value = value;
         }
 
+        // --- UPLOAD E PREVIEW DA LOGO ---
         function previewLogo(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -181,14 +179,29 @@
             document.getElementById('btn-remove-logo').style.display = 'none';
         }
 
-        let dados = [];
+        // --- CRUD 100% LOCAL (localStorage) ---
+        const STORAGE_KEY = 'empresasData';
+        let dados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
+            {
+                id: 1,
+                razao: "TT DISTRIBUIDOR DE ALIMENTOS LTDA",
+                cnpj: "08.381.919/0001-84",
+                data_abertura: "",
+                endereco: "Avenida Prefeito Wall Ferraz",
+                numero: "17777",
+                complemento: "",
+                bairro: "Pedra Miúda",
+                cidade: "Teresina - PI",
+                telefone: "(86) 3222-0000",
+                celular: "(86) 99999-0000",
+                email: "contato@ttdistribuidor.com",
+                logo: ""
+            }
+        ];
         let editandoId = null;
 
-        async function carregarDados() {
-            const { data, error } = await dbClient.from('empresas').select('*');
-            if (error) { console.error('Erro ao carregar empresas:', error); dados = []; }
-            else { dados = data || []; }
-            renderizarTabela();
+        function salvarLocal() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
         }
 
         function renderizarTabela(filtro = '') {
@@ -205,8 +218,10 @@
                 if (item.logo && item.logo.trim() !== '') {
                     const img = document.createElement('img');
                     img.src = item.logo;
-                    img.style.width = '50px'; img.style.height = '50px';
-                    img.style.objectFit = 'cover'; img.style.borderRadius = '8px';
+                    img.style.width = '50px';
+                    img.style.height = '50px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
                     img.style.border = '1px solid #e0f2fe';
                     tdLogo.appendChild(img);
                 } else {
@@ -215,17 +230,21 @@
                 tr.appendChild(tdLogo);
 
                 const tdRazao = document.createElement('td');
-                tdRazao.style.padding = '10px'; tdRazao.style.color = '#1e3a8a'; tdRazao.style.fontWeight = '600';
+                tdRazao.style.padding = '10px';
+                tdRazao.style.color = '#1e3a8a';
+                tdRazao.style.fontWeight = '600';
                 tdRazao.textContent = item.razao;
                 tr.appendChild(tdRazao);
 
                 const tdCnpj = document.createElement('td');
-                tdCnpj.style.padding = '10px'; tdCnpj.style.color = '#64748b';
+                tdCnpj.style.padding = '10px';
+                tdCnpj.style.color = '#64748b';
                 tdCnpj.textContent = item.cnpj;
                 tr.appendChild(tdCnpj);
 
                 const tdAcoes = document.createElement('td');
-                tdAcoes.style.padding = '10px'; tdAcoes.style.textAlign = 'center';
+                tdAcoes.style.padding = '10px';
+                tdAcoes.style.textAlign = 'center';
                 tdAcoes.innerHTML = `
                     <button onclick="editarRegistro(${item.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
                     <button onclick="excluirRegistro(${item.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
@@ -258,22 +277,29 @@
             document.getElementById('email').value = item ? item.email || '' : '';
             if (item && item.logo) {
                 const preview = document.getElementById('preview-logo');
-                preview.src = item.logo; preview.style.display = 'block';
+                preview.src = item.logo;
+                preview.style.display = 'block';
                 document.getElementById('btn-remove-logo').style.display = 'block';
-            } else { removerImagem(); }
+            } else {
+                removerImagem();
+            }
             editandoId = item ? item.id : null;
         }
 
         function fecharModal() {
             document.getElementById('modal').style.display = 'none';
             document.getElementById('form-empresa').reset();
-            removerImagem(); editandoId = null;
+            removerImagem();
+            editandoId = null;
         }
 
-        async function salvarRegistro() {
+        function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
-            if (!razao || !cnpj) { alert('Preencha Razão Social e CNPJ.'); return; }
+            if (!razao || !cnpj) {
+                alert('Preencha Razão Social e CNPJ.');
+                return;
+            }
             const data_abertura = document.getElementById('data_abertura').value;
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
@@ -285,41 +311,32 @@
             const email = document.getElementById('email').value.trim();
             const logo = document.getElementById('preview-logo').src || '';
 
-            try {
-                if (editandoId) {
-                    const { error } = await dbClient.from('empresas').update({
-                        razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
-                    }).eq('id', editandoId);
-                    if (error) { alert('Erro ao atualizar: ' + error.message); return; }
-                    alert('Empresa atualizada com sucesso!');
-                } else {
-                    const { error } = await dbClient.from('empresas').insert({
-                        razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo
-                    });
-                    if (error) { alert('Erro ao salvar: ' + error.message); return; }
-                    alert('Empresa salva com sucesso!');
+            if (editandoId) {
+                const index = dados.findIndex(d => d.id === editandoId);
+                if (index !== -1) {
+                    dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
                 }
-            } catch (err) {
-                alert('Erro de conexão: ' + err.message);
-                return;
+            } else {
+                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo });
             }
-
-            fecharModal(); carregarDados();
+            salvarLocal();
+            fecharModal();
+            renderizarTabela();
         }
 
-        async function editarRegistro(id) {
-            const { data } = await dbClient.from('empresas').select('*').eq('id', id).single();
-            if (data) abrirModal(data);
+        function editarRegistro(id) {
+            const item = dados.find(d => d.id === id);
+            if (item) abrirModal(item);
         }
 
-        async function excluirRegistro(id) {
+        function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            const { error } = await dbClient.from('empresas').delete().eq('id', id);
-            if (error) alert('Erro ao excluir: ' + error.message);
-            carregarDados();
+            dados = dados.filter(d => d.id !== id);
+            salvarLocal();
+            renderizarTabela();
         }
 
-        carregarDados();
+        renderizarTabela();
     </script>
 </body>
 </html>

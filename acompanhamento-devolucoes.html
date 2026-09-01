@@ -547,16 +547,19 @@
             return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()} ${String(data.getHours()).padStart(2, '0')}:${String(data.getMinutes()).padStart(2, '0')}`;
         }
 
+        // CORRIGIDO: usa Map para garantir apenas 1 registro por arquivo (mais recente)
         async function carregarBancosImportados() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
+
+            // Busca todos os registros, ordenados do mais recente para o mais antigo
             const { data, error } = await db.from('historico_importacoes')
-                .select('nome_arquivo, data_criacao, data_importacao, tamanho_arquivo')
+                .select('*')
                 .eq('empresa_id', empresaId)
                 .eq('categoria', 'devolucoes')
                 .order('data_importacao', { ascending: false });
-            
+
             const tbody = document.getElementById('tabela-bancos');
             if (error) {
                 tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ef4444; padding:20px;">Erro ao carregar: ${error.message}</td></tr>`;
@@ -567,8 +570,17 @@
                 return;
             }
 
-            tbody.innerHTML = '';
+            // Usa um Map para manter apenas a última importação de cada arquivo (mais recente)
+            const mapArquivos = new Map();
             data.forEach(item => {
+                const chave = `${item.nome_arquivo}_${item.data_criacao}`;
+                if (!mapArquivos.has(chave)) {
+                    mapArquivos.set(chave, item);
+                }
+            });
+
+            tbody.innerHTML = '';
+            mapArquivos.forEach(item => {
                 const dataMod = formatarDataHora(item.data_criacao);
                 const dataImp = formatarDataHora(item.data_importacao);
                 const tr = document.createElement('tr');
@@ -675,13 +687,13 @@
             return todasLinhas;
         }
 
-        // ========== CORREÇÃO: UPSERT NO HISTÓRICO ==========
+        // CORREÇÃO: Upsert no histórico (insere se não existe, atualiza se já existe)
         async function registrarHistorico(nomeArquivo, dataModificacao, linhas, tamanho) {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
 
-            // 1. Verifica se já existe um arquivo com o mesmo nome e data de modificação
+            // Verifica se já existe um registro com o mesmo arquivo e data de modificação
             const { data: existente, error: erroBusca } = await db.from('historico_importacoes')
                 .select('id')
                 .eq('empresa_id', empresaId)
@@ -696,13 +708,13 @@
             }
 
             if (existente) {
-                // 2. Se já existe, ATUALIZA a data de importação e tamanho
+                // Atualiza data de importação e tamanho
                 const { error: erroUpdate } = await db.from('historico_importacoes')
                     .update({ data_importacao: new Date().toISOString(), tamanho_arquivo: tamanho })
                     .eq('id', existente.id);
                 if (erroUpdate) console.error('Erro ao atualizar histórico:', erroUpdate);
             } else {
-                // 3. Se não existe, INSERE
+                // Insere novo
                 const { error: erroInsert } = await db.from('historico_importacoes').insert({
                     empresa_id: empresaId,
                     nome_arquivo: nomeArquivo,
@@ -715,7 +727,6 @@
             }
         }
 
-        // A função processarArquivos foi modificada para passar a data de modificação correta
         async function processarArquivos() {
             const db = window.supabaseClient;
             if (!db) { alert('Banco não conectado.'); return; }
@@ -732,10 +743,10 @@
             }
             ocultarCarregamento();
 
-            // Registrar histórico de cada arquivo (com data de modificação real)
+            // Registrar histórico de cada arquivo (agora com data de modificação real)
             for (const file of listaArquivos) {
                 const tamanho = (file.size / 1024).toFixed(2) + ' KB';
-                const dataMod = new Date(file.lastModified).toISOString(); // Data e hora reais do arquivo
+                const dataMod = new Date(file.lastModified).toISOString();
                 await registrarHistorico(file.name, dataMod, linhas.length, tamanho);
             }
 

@@ -16,35 +16,31 @@
         .btn-azul { background: #3b82f6; color: white; }
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
         .btn-roxo { background: #8b5cf6; color: white; }
-        
-        .filtros-painel { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; display: none; }
-        .filtros-painel.ativo { display: block; }
-        .filtros-linha { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
-        .filtros-linha label { display: block; font-weight: 600; margin-bottom: 5px; color: #334155; }
-        .filtros-linha input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
-        .botoes-meses { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
-        .month-btn { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-        .month-btn.active { background: #3b82f6; color: white; }
-        
+        .filtro-painel { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .filtro-linha { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
+        .filtro-linha label { display: block; font-weight: 600; margin-bottom: 5px; color: #334155; }
+        .filtro-linha input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        .botoes-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .chip { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; user-select: none; }
+        .chip.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .graficos-container { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; }
+        .grafico-box { flex: 1; min-width: 400px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .tabela-box { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+        th { text-align: left; background: #f1f5f9; }
+        td:first-child, th:first-child { text-align: left; }
+        tr:last-child td { font-weight: bold; background: #f1f5f9; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30,58,138,0.4); backdrop-filter: blur(6px); z-index: 9998; display: none; align-items: center; justify-content: center; }
         .modal-overlay.ativo { display: flex; }
         .modal-box { background: #fff; border-radius: 24px; padding: 30px; max-width: 600px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(31,38,135,0.3); border: 1px solid rgba(59,130,246,0.2); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e0f2fe; padding-bottom: 10px; }
         .modal-header h3 { margin: 0; color: #1e3a8a; }
-        .modal-header button { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
         .modal-lista { max-height: 300px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e0f2fe; border-radius: 8px; padding: 10px; }
         .modal-lista label { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 0.95rem; color: #1e3a8a; line-height: 1.4; }
         .modal-lista label:hover { background: #e0f2fe; }
         .modal-lista input[type="checkbox"] { width: 24px; height: 24px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: #3b82f6; }
         .modal-botoes { display: flex; justify-content: flex-end; gap: 10px; }
-        .modal-botoes .btn { border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-weight: 600; }
-        
-        .grafico-tabela { display: flex; gap: 30px; flex-wrap: wrap; }
-        .grafico-box, .tabela-box { flex: 1; min-width: 400px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .tabela-box table { width: 100%; border-collapse: collapse; }
-        .tabela-box th { text-align: left; padding: 10px; background: #f1f5f9; }
-        .tabela-box td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
-        .tabela-box tr:last-child td { font-weight: bold; background: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -54,12 +50,9 @@
             <a href="acompanhamento-devolucoes.html" class="btn btn-cinza"><i class="fas fa-arrow-left"></i> Voltar</a>
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <button onclick="toggleFiltros()" class="btn btn-azul"><i class="fas fa-filter"></i> Mostrar/Ocultar Filtros</button>
-        </div>
-
-        <div id="painel-filtros" class="filtros-painel">
-            <div class="filtros-linha">
+        <div class="filtro-painel">
+            <h3>Filtros</h3>
+            <div class="filtro-linha">
                 <div>
                     <label>Data Inicial</label>
                     <input type="date" id="filtro_data_ini">
@@ -76,30 +69,38 @@
                     <label>Fornecedor Principal</label>
                     <button onclick="abrirModalFiltro('fornecedor_principal')" class="btn btn-cinza">Selecionar</button>
                 </div>
-                <div>
-                    <button onclick="carregarDashboard()" class="btn btn-azul">Aplicar Filtros</button>
-                </div>
+                <button onclick="carregarDashboard()" class="btn btn-azul">Aplicar Filtros</button>
             </div>
+
+            <div style="margin-bottom: 10px;">
+                <label><strong>Meses:</strong></label>
+                <div id="botoes-meses" class="botoes-chips"></div>
+                <button onclick="selecionarTodosMeses()" class="btn btn-cinza" style="margin-top:5px; padding: 5px 10px;">Todos</button>
+                <button onclick="limparMeses()" class="btn btn-cinza" style="margin-top:5px; padding: 5px 10px;">Limpar</button>
+            </div>
+
             <div>
-                <label><strong>Mês:</strong></label>
-                <div id="botoes-meses" class="botoes-meses"></div>
+                <label><strong>Anos:</strong></label>
+                <div id="botoes-anos" class="botoes-chips"></div>
+                <button onclick="selecionarTodosAnos()" class="btn btn-cinza" style="margin-top:5px; padding: 5px 10px;">Todos</button>
+                <button onclick="limparAnos()" class="btn btn-cinza" style="margin-top:5px; padding: 5px 10px;">Limpar</button>
             </div>
         </div>
 
-        <div class="grafico-tabela">
+        <div class="graficos-container">
             <div class="grafico-box">
-                <h3>Valor Total por Fornecedor</h3>
-                <canvas id="graficoBarras" height="300"></canvas>
+                <h3>Por Fornecedor Principal</h3>
+                <canvas id="graficoPrincipal" height="300"></canvas>
             </div>
-            <div class="tabela-box">
-                <h3>Resumo</h3>
-                <table>
-                    <thead>
-                        <tr><th>Fornecedor</th><th>Valor</th><th>%</th></tr>
-                    </thead>
-                    <tbody id="tabela-resumo"></tbody>
-                </table>
+            <div class="grafico-box">
+                <h3>Por Fornecedor</h3>
+                <canvas id="graficoFornecedor" height="300"></canvas>
             </div>
+        </div>
+
+        <div class="tabela-box">
+            <h3>Resumo por Fornecedor Principal e Mês</h3>
+            <table id="tabela-resumo"></table>
         </div>
     </div>
 
@@ -120,15 +121,38 @@
 
     <script src="script.js"></script>
     <script>
-        let grafico = null;
+        let graficoPrincipal = null;
+        let graficoFornecedor = null;
         let colunaAtual = null;
-        let selecionados = {};
+        let selecionados = { fornecedor: [], fornecedor_principal: [] };
+        let mesesSelecionados = [];
+        let anosSelecionados = [];
 
-        function toggleFiltros() {
-            const painel = document.getElementById('painel-filtros');
-            painel.classList.toggle('ativo');
+        // Função para converter string monetária BR para número
+        function converterValor(valor) {
+            if (typeof valor === 'number') return valor;
+            let str = String(valor).trim().replace(/R\$/g, '').replace(/\s/g, '');
+            // Se tiver vírgula, é decimal BR (1.234,56)
+            if (str.includes(',')) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            } else {
+                // Se não tiver vírgula, mas tiver muitos pontos, provavelmente é milhar (1.234.567)
+                // Assumimos que o último ponto é decimal se tiver 1 ou 2 dígitos depois, senão remove tudo
+                const partes = str.split('.');
+                if (partes.length > 1) {
+                    // Remove todos os pontos, exceto o último se tiver 1-2 dígitos
+                    if (partes[partes.length - 1].length <= 2) {
+                        str = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1];
+                    } else {
+                        str = partes.join('');
+                    }
+                }
+            }
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
         }
 
+        // Abrir modal de seleção múltipla
         async function abrirModalFiltro(coluna) {
             colunaAtual = coluna;
             document.getElementById('modal-titulo').textContent = coluna === 'fornecedor' ? 'Selecionar Fornecedores' : 'Selecionar Fornecedor Principal';
@@ -147,13 +171,11 @@
 
             const valores = (data || []).sort();
             const selecionadosAtuais = selecionados[coluna] || [];
-            
             const listaHTML = valores.map(val => `
                 <label>
                     <input type="checkbox" value="${val}" ${selecionadosAtuais.includes(val) ? 'checked' : ''}> ${val}
                 </label>
             `).join('');
-            
             document.getElementById('modal-lista').innerHTML = listaHTML;
         }
 
@@ -172,90 +194,192 @@
             document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        async function carregarMeses() {
+        // Carregar meses e anos dinâmicos
+        async function carregarOpcoes() {
             const db = window.supabaseClient;
             if (!db) return;
-            
-            const { data, error } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
-            if (error || !data) return;
+
+            const { data: dataMeses, error: errMeses } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
+            const { data: dataAnos, error: errAnos } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
 
             const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             const meses = new Set();
-            
-            data.forEach(val => {
+            const anos = new Set();
+
+            function processarData(val) {
                 if (!isNaN(val) && Number(val) > 20000 && Number(val) < 60000) {
                     const date = new Date((Number(val) - 25569) * 86400 * 1000);
                     meses.add(String(date.getMonth() + 1).padStart(2, '0'));
-                } else if (typeof val === 'string' && val.includes('/')) {
-                    const parts = val.split('/');
-                    if (parts.length === 3) {
-                        meses.add(parts[1]); // formato dd/mm/yyyy
-                    }
+                    anos.add(String(date.getFullYear()));
                 } else if (typeof val === 'string' && val.includes('-')) {
-                    meses.add(val.split('-')[1]); // formato yyyy-mm-dd
+                    const partes = val.split('-');
+                    meses.add(partes[1]);
+                    anos.add(partes[0]);
                 }
-            });
-            
-            const container = document.getElementById('botoes-meses');
-            container.innerHTML = '';
+            }
+
+            (dataMeses || []).forEach(processarData);
+            (dataAnos || []).forEach(processarData);
+
+            // Renderizar meses
+            const containerMeses = document.getElementById('botoes-meses');
+            containerMeses.innerHTML = '';
             [...meses].sort().forEach(mesNum => {
                 const idx = parseInt(mesNum) - 1;
-                const btn = document.createElement('button');
-                btn.className = 'month-btn';
-                btn.textContent = nomesMeses[idx] || mesNum;
-                btn.dataset.mes = mesNum;
-                btn.onclick = () => {
-                    document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    // Define explicitamente o início e fim do mês, e limpa os campos de data manual
-                    document.getElementById('filtro_data_ini').value = '2026-' + mesNum + '-01';
-                    document.getElementById('filtro_data_fim').value = '2026-' + mesNum + '-31';
-                    carregarDashboard();
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = nomesMeses[idx] || mesNum;
+                chip.dataset.mes = mesNum;
+                chip.onclick = () => {
+                    chip.classList.toggle('active');
+                    atualizarMesesSelecionados();
                 };
-                container.appendChild(btn);
+                containerMeses.appendChild(chip);
             });
+
+            // Renderizar anos
+            const containerAnos = document.getElementById('botoes-anos');
+            containerAnos.innerHTML = '';
+            [...anos].sort().forEach(ano => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = ano;
+                chip.dataset.ano = ano;
+                chip.onclick = () => {
+                    chip.classList.toggle('active');
+                    atualizarAnosSelecionados();
+                };
+                containerAnos.appendChild(chip);
+            });
+
+            // Pré-selecionar todos
+            mesesSelecionados = [...meses];
+            anosSelecionados = [...anos];
+            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active'));
+            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active'));
         }
 
+        function atualizarMesesSelecionados() {
+            mesesSelecionados = Array.from(document.querySelectorAll('#botoes-meses .chip.active')).map(c => c.dataset.mes);
+        }
+
+        function atualizarAnosSelecionados() {
+            anosSelecionados = Array.from(document.querySelectorAll('#botoes-anos .chip.active')).map(c => c.dataset.ano);
+        }
+
+        function selecionarTodosMeses() {
+            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active'));
+            atualizarMesesSelecionados();
+        }
+
+        function limparMeses() {
+            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.remove('active'));
+            atualizarMesesSelecionados();
+        }
+
+        function selecionarTodosAnos() {
+            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active'));
+            atualizarAnosSelecionados();
+        }
+
+        function limparAnos() {
+            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.remove('active'));
+            atualizarAnosSelecionados();
+        }
+
+        // Carregar dashboard com gráficos e tabela pivot
         async function carregarDashboard() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
             const dataIni = document.getElementById('filtro_data_ini').value || null;
             const dataFim = document.getElementById('filtro_data_fim').value || null;
-            const forn = selecionados['fornecedor'] || null;
-            const fornPrinc = selecionados['fornecedor_principal'] || null;
 
-            const { data, error } = await db.rpc('get_resumo_devolucoes', {
+            const forn = selecionados['fornecedor'].length ? selecionados['fornecedor'] : null;
+            const fornPrinc = selecionados['fornecedor_principal'].length ? selecionados['fornecedor_principal'] : null;
+            const meses = mesesSelecionados.length ? mesesSelecionados : null;
+            const anos = anosSelecionados.length ? anosSelecionados : null;
+
+            // Chamada à RPC que retorna dados por mês
+            const { data, error } = await db.rpc('get_resumo_mensal', {
                 p_empresa_id: empresaId,
-                p_data_inicio: dataIni,
-                p_data_fim: dataFim,
+                p_anos: anos,
+                p_meses: meses,
                 p_fornecedores: forn,
                 p_fornecedores_principais: fornPrinc
             });
 
-            if (error) { console.error(error); return; }
+            if (error) {
+                console.error(error);
+                return;
+            }
 
-            const tbody = document.getElementById('tabela-resumo');
-            tbody.innerHTML = '';
-            let totalGeral = 0;
+            // Processar dados
+            const dadosPorPrincipal = {};
+            const dadosPorFornecedor = {};
+            const dadosPorMesPorPrincipal = {}; // chave: fornecedor_principal -> mes -> valor
+
             data.forEach(item => {
-                totalGeral += parseFloat(item.valor_total);
-                // Formata sem multiplicar por 100, apenas com 2 casas decimais e separador de milhar
-                const valorFormatado = parseFloat(item.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                tbody.innerHTML += `<tr><td>${item.fornecedor}</td><td>R$ ${valorFormatado}</td><td>${parseFloat(item.percentual).toFixed(2)}%</td></tr>`;
-            });
-            const totalFormatado = totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            tbody.innerHTML += `<tr><td>Total Geral</td><td>R$ ${totalFormatado}</td><td>100%</td></tr>`;
+                const valor = converterValor(item.valor_total);
 
-            const ctx = document.getElementById('graficoBarras').getContext('2d');
-            if (grafico) grafico.destroy();
-            grafico = new Chart(ctx, {
+                // Agregar por principal
+                if (!dadosPorPrincipal[item.fornecedor_principal]) {
+                    dadosPorPrincipal[item.fornecedor_principal] = 0;
+                }
+                dadosPorPrincipal[item.fornecedor_principal] += valor;
+
+                // Agregar por fornecedor completo
+                if (!dadosPorFornecedor[item.fornecedor]) {
+                    dadosPorFornecedor[item.fornecedor] = 0;
+                }
+                dadosPorFornecedor[item.fornecedor] += valor;
+
+                // Agregar por mês e principal
+                if (!dadosPorMesPorPrincipal[item.fornecedor_principal]) {
+                    dadosPorMesPorPrincipal[item.fornecedor_principal] = {};
+                }
+                const chaveMes = item.mes;
+                if (!dadosPorMesPorPrincipal[item.fornecedor_principal][chaveMes]) {
+                    dadosPorMesPorPrincipal[item.fornecedor_principal][chaveMes] = 0;
+                }
+                dadosPorMesPorPrincipal[item.fornecedor_principal][chaveMes] += valor;
+            });
+
+            // Ordenar por valor decrescente
+            const arrayPrincipal = Object.entries(dadosPorPrincipal).sort((a, b) => b[1] - a[1]);
+            const arrayFornecedor = Object.entries(dadosPorFornecedor).sort((a, b) => b[1] - a[1]);
+
+            // Renderizar gráfico principal
+            const ctx1 = document.getElementById('graficoPrincipal').getContext('2d');
+            if (graficoPrincipal) graficoPrincipal.destroy();
+            graficoPrincipal = new Chart(ctx1, {
                 type: 'bar',
                 data: {
-                    labels: data.map(item => item.fornecedor),
+                    labels: arrayPrincipal.map(item => item[0]),
                     datasets: [{
                         label: 'Valor',
-                        data: data.map(item => parseFloat(item.valor_total)),
+                        data: arrayPrincipal.map(item => item[1]),
+                        backgroundColor: 'rgba(139,92,246,0.7)',
+                        borderColor: 'rgba(139,92,246,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
+                }
+            });
+
+            // Renderizar gráfico fornecedor
+            const ctx2 = document.getElementById('graficoFornecedor').getContext('2d');
+            if (graficoFornecedor) graficoFornecedor.destroy();
+            graficoFornecedor = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: arrayFornecedor.map(item => item[0]),
+                    datasets: [{
+                        label: 'Valor',
+                        data: arrayFornecedor.map(item => item[1]),
                         backgroundColor: 'rgba(59,130,246,0.7)',
                         borderColor: 'rgba(59,130,246,1)',
                         borderWidth: 1
@@ -263,16 +387,46 @@
                 },
                 options: {
                     indexAxis: 'y',
-                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } } }
+                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
                 }
             });
+
+            // Renderizar tabela pivot
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const mesesOrdenados = [...mesesSelecionados].sort();
+            const containerTabela = document.getElementById('tabela-resumo');
+            containerTabela.innerHTML = '<thead><tr><th>Fornecedor Principal</th><th>Valor Total</th><th>%</th>' + mesesOrdenados.map(m => `<th>${nomesMeses[parseInt(m)-1] || m}</th>`).join('') + '</tr></thead><tbody>';
+
+            let totalGeral = 0;
+            arrayPrincipal.forEach(([principal, valorTotal]) => {
+                totalGeral += valorTotal;
+                const percentual = (valorTotal / totalGeral) * 100;
+                const linhaMes = mesesOrdenados.map(m => {
+                    const v = dadosPorMesPorPrincipal[principal]?.[m] || 0;
+                    return `<td>R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                }).join('');
+                containerTabela.innerHTML += `<tr><td>${principal}</td><td>R$ ${valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td><td>${percentual.toFixed(2)}%</td>${linhaMes}</tr>`;
+            });
+            containerTabela.innerHTML += `<tr><td>Total Geral</td><td>R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td><td>100%</td>` + mesesOrdenados.map(m => {
+                const somaMes = mesesOrdenados.reduce((acc, mm) => {
+                    // Somar todos os principais para o mês m
+                    let total = 0;
+                    arrayPrincipal.forEach(([principal]) => {
+                        total += dadosPorMesPorPrincipal[principal]?.[m] || 0;
+                    });
+                    return acc + total;
+                }, 0);
+                return `<td>R$ ${somaMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+            }).join('') + '</tr>';
+            containerTabela.innerHTML += '</tbody>';
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const wait = setInterval(() => {
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', async () => {
+            const wait = setInterval(async () => {
                 if (window.supabaseClient) {
                     clearInterval(wait);
-                    carregarMeses();
+                    await carregarOpcoes();
                     carregarDashboard();
                 }
             }, 200);

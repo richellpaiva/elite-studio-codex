@@ -7,49 +7,45 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <script>
-        // Proteção: se não estiver logado, volta para o login
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
-            window.location.href = 'index.html';
-        }
+        if (localStorage.getItem('isLoggedIn') !== 'true') window.location.href = 'index.html';
     </script>
 
-    <!-- Ícone hambúrguer flutuante (aparece sobre a barra lateral) -->
-    <div id="sidebarToggle" onclick="toggleSidebar()" style="position: fixed; top: 20px; left: 20px; z-index: 200; cursor: pointer; background: #fff; border-radius: 8px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #1e3a8a;">
-        <i class="fas fa-bars" id="menuIcon"></i>
-    </div>
-
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar" style="position: fixed; left: 0; top: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 30px 20px; z-index: 100; display: flex; flex-direction: column; transition: all 0.3s ease;">
+    <div id="sidebar" style="position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: width 0.3s ease;">
         
-        <!-- Logo da empresa (centralizada) -->
-        <div style="text-align: center; margin-bottom: 20px;">
+        <!-- Logo da empresa -->
+        <div style="text-align: center; margin-bottom: 15px; position: relative;">
             <img id="empresa-logo" src="" alt="Logo" style="display: none; max-width: 120px; max-height: 80px; object-fit: contain; margin: 0 auto;">
             <div id="empresa-logo-placeholder" style="width: 60px; height: 60px; background: #e0f2fe; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 30px; margin: 0 auto;">
                 <i class="fas fa-building"></i>
             </div>
         </div>
-
         <h2 id="empresa-nome" style="color: #1e3a8a; text-align: center; font-size: 1.1rem; margin-bottom: 30px; word-wrap: break-word;">Carregando...</h2>
 
+        <!-- Botão hambúrguer (posicionado logo abaixo do logo, sem sobrepor) -->
+        <div style="text-align: center; margin-bottom: 15px;">
+            <button onclick="toggleSidebar()" style="background: #e0f2fe; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; color: #1e3a8a;"><i class="fas fa-bars" id="menuIcon"></i> <span class="menu-text">Recolher Menu</span></button>
+        </div>
+
         <!-- Menu -->
-        <nav id="nav-menu" style="display: flex; flex-direction: column; gap: 8px;">
-            <a href="#" onclick="loadSection('devolucoes')" class="menu-link" style="display: flex; align-items: center; gap: 15px; color: #1e3a8a; text-decoration: none; padding: 12px 15px; border-radius: 12px; transition: 0.3s; font-weight: 500; background: rgba(59,130,246,0.1);">
+        <nav style="display: flex; flex-direction: column; gap: 8px;">
+            <a href="#" onclick="loadSection('devolucoes')" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #1e3a8a; text-decoration: none; padding: 12px; border-radius: 12px; transition: 0.3s; font-weight: 500; background: rgba(59,130,246,0.1);">
                 <i class="fas fa-undo-alt" style="color: #3b82f6; font-size: 1.2rem; min-width: 20px;"></i>
                 <span class="menu-text">Acompanhamento de Devoluções</span>
             </a>
-            <!-- Adicione mais itens de menu aqui futuramente -->
         </nav>
 
         <!-- Rodapé -->
-        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(59,130,246,0.2);">
-            <a href="home.html" class="menu-link" style="display: flex; align-items: center; gap: 15px; color: #64748b; text-decoration: none; padding: 10px;">
+        <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(59,130,246,0.2);">
+            <a href="home.html" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #64748b; text-decoration: none; padding: 10px;">
                 <i class="fas fa-arrow-left" style="min-width: 20px;"></i>
                 <span class="menu-text">Voltar ao Painel Geral</span>
             </a>
-            <a href="#" onclick="logout()" style="display: flex; align-items: center; gap: 15px; color: #ef4444; text-decoration: none; padding: 10px;">
+            <a href="#" onclick="logout()" style="display: flex; align-items: center; gap: 10px; color: #ef4444; text-decoration: none; padding: 10px;">
                 <i class="fas fa-sign-out-alt" style="min-width: 20px;"></i>
                 <span class="menu-text">Sair</span>
             </a>
@@ -57,20 +53,19 @@
     </div>
 
     <!-- Conteúdo Principal -->
-    <div id="main-content" style="margin-left: 280px; padding: 40px; transition: all 0.3s ease;">
-        
+    <div id="main-content" style="margin-left: 280px; padding: 30px; transition: margin-left 0.3s ease;">
         <!-- Cabeçalho do usuário -->
-        <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 30px;">
-            <div style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.7); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(59,130,246,0.2);">
-                <img id="user-foto" src="" alt="Foto" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: none;">
-                <div id="user-foto-placeholder" style="width: 40px; height: 40px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.7); padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(59,130,246,0.2);">
+                <img id="user-foto" src="" alt="Foto" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; display: none;">
+                <div id="user-foto-placeholder" style="width: 35px; height: 35px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
                     <i class="fas fa-user"></i>
                 </div>
-                <span id="user-name" style="color: #1e3a8a; font-weight: 600; font-size: 0.95rem;">Carregando...</span>
+                <span id="user-name" style="color: #1e3a8a; font-weight: 600; font-size: 0.9rem;">Carregando...</span>
             </div>
         </div>
 
-        <!-- Área onde o conteúdo das seções será carregado -->
+        <!-- Área de conteúdo -->
         <div id="content-area">
             <h1 style="color: #1e3a8a;">Bem-vindo!</h1>
             <p style="color: #64748b;">Selecione uma opção no menu lateral.</p>
@@ -79,75 +74,39 @@
 
     <script src="script.js"></script>
     <script>
-        // ================== CONTROLE DA SIDEBAR ==================
-        let sidebarCollapsed = false;
-
+        // ========== CONTROLE DA SIDEBAR ==========
+        let collapsed = false;
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const main = document.getElementById('main-content');
-            const menuTexts = document.querySelectorAll('.menu-text');
-            
-            if (!sidebarCollapsed) {
-                // Recolher
+            const texts = document.querySelectorAll('.menu-text');
+            collapsed = !collapsed;
+            if (collapsed) {
                 sidebar.style.width = '70px';
-                sidebar.style.padding = '30px 10px';
+                sidebar.style.padding = '20px 10px';
                 main.style.marginLeft = '70px';
-                // Esconder textos
-                menuTexts.forEach(el => el.style.display = 'none');
-                // Esconder nome da empresa
+                texts.forEach(el => el.style.display = 'none');
                 document.getElementById('empresa-nome').style.display = 'none';
-                document.getElementById('empresa-logo').style.display = 'none';
-                document.getElementById('empresa-logo-placeholder').style.display = 'flex';
-                // Ajustar ícones
-                document.querySelectorAll('.menu-link').forEach(link => {
-                    link.style.justifyContent = 'center';
-                    link.style.padding = '12px';
-                });
-                sidebarCollapsed = true;
             } else {
-                // Expandir
                 sidebar.style.width = '280px';
-                sidebar.style.padding = '30px 20px';
+                sidebar.style.padding = '20px 15px';
                 main.style.marginLeft = '280px';
-                // Mostrar textos
-                menuTexts.forEach(el => el.style.display = 'inline');
-                // Mostrar logo/nome
+                texts.forEach(el => el.style.display = 'inline');
                 document.getElementById('empresa-nome').style.display = 'block';
-                // Reposicionar logo (se tiver imagem)
-                const img = document.getElementById('empresa-logo');
-                if (img.src) {
-                    img.style.display = 'block';
-                    document.getElementById('empresa-logo-placeholder').style.display = 'none';
-                } else {
-                    document.getElementById('empresa-logo-placeholder').style.display = 'flex';
-                }
-                // Ajustar ícones
-                document.querySelectorAll('.menu-link').forEach(link => {
-                    link.style.justifyContent = 'flex-start';
-                    link.style.padding = '12px 15px';
-                });
-                sidebarCollapsed = false;
             }
         }
 
-        // ================== CARREGAR DADOS DO USUÁRIO ==================
+        // ========== CARREGAR USUÁRIO E EMPRESA ==========
         async function carregarUsuario() {
-            const dbClient = window.supabaseClient;
-            if (!dbClient) return;
-
+            const db = window.supabaseClient;
+            if (!db) return;
             const userId = localStorage.getItem('userId');
             if (!userId) return;
-
-            const { data, error } = await dbClient.from('usuarios').select('*').eq('id', userId).single();
-            if (error) {
-                console.error('Erro ao buscar usuário:', error);
-                return;
-            }
-
+            const { data, error } = await db.from('usuarios').select('*').eq('id', userId).single();
+            if (error) return;
             if (data) {
                 document.getElementById('user-name').textContent = data.nome;
-
-                if (data.foto && data.foto.trim() !== '') {
+                if (data.foto) {
                     const img = document.getElementById('user-foto');
                     img.src = data.foto;
                     img.style.display = 'block';
@@ -156,27 +115,16 @@
             }
         }
 
-        // ================== CARREGAR DADOS DA EMPRESA ==================
         async function carregarEmpresa() {
-            const dbClient = window.supabaseClient;
-            if (!dbClient) return;
-
+            const db = window.supabaseClient;
+            if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
-            if (!empresaId) {
-                document.getElementById('empresa-nome').textContent = 'Empresa não encontrada';
-                return;
-            }
-
-            const { data, error } = await dbClient.from('empresas').select('*').eq('id', empresaId).single();
-            if (error) {
-                console.error('Erro ao buscar empresa:', error);
-                document.getElementById('empresa-nome').textContent = 'Erro ao carregar';
-                return;
-            }
-
+            if (!empresaId) return;
+            const { data, error } = await db.from('empresas').select('*').eq('id', empresaId).single();
+            if (error) return;
             if (data) {
                 document.getElementById('empresa-nome').textContent = data.razao;
-                if (data.logo && data.logo.trim() !== '') {
+                if (data.logo) {
                     const img = document.getElementById('empresa-logo');
                     img.src = data.logo;
                     img.style.display = 'block';
@@ -185,25 +133,31 @@
             }
         }
 
-        // ================== CARREGAR CONTEÚDO (DEVOLUÇÕES) ==================
+        // ========== LÓGICA DE DEVOLUÇÕES ==========
+        let listaArquivos = []; // Armazena os arquivos selecionados
+
         async function loadSection(section) {
             const area = document.getElementById('content-area');
-            
             if (section === 'devolucoes') {
-                // Monta o HTML da seção de devoluções
                 area.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
                         <h1 style="color: #1e3a8a;">Acompanhamento de Devoluções</h1>
-                        <button onclick="abrirModalDevolucao()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-plus"></i> Registrar Devolução</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-upload"></i> Importar Planilhas</button>
+                            <button onclick="atualizarBanco()" class="btn-outline" style="padding: 10px 20px;"><i class="fas fa-sync-alt"></i> Atualizar Banco</button>
+                        </div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px;">
+                    <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
+                    <div id="status-importacao" style="margin-bottom: 15px; color: #64748b;"></div>
+                    <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; text-align: left;">
                             <thead>
                                 <tr style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
                                     <th style="padding: 12px;">Data</th>
-                                    <th style="padding: 12px;">Código</th>
+                                    <th style="padding: 12px;">Fornecedor</th>
                                     <th style="padding: 12px;">Produto</th>
                                     <th style="padding: 12px;">Qtd</th>
+                                    <th style="padding: 12px;">Cliente</th>
                                     <th style="padding: 12px;">Motivo</th>
                                     <th style="padding: 12px;">Ações</th>
                                 </tr>
@@ -212,45 +166,129 @@
                         </table>
                     </div>
                 `;
-
-                // Após montar o HTML, carrega os dados
                 await carregarDevolucoes();
-            } else {
-                area.innerHTML = '<h1>Seção em construção</h1>';
             }
         }
 
-        // ================== LÓGICA DE DEVOLUÇÕES ==================
-        async function carregarDevolucoes() {
-            const dbClient = window.supabaseClient;
-            if (!dbClient) return;
+        function adicionarArquivos(event) {
+            const files = Array.from(event.target.files);
+            listaArquivos = listaArquivos.concat(files);
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Atualizar Banco" para processar.`;
+            event.target.value = '';
+        }
 
+        async function processarArquivos() {
+            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return; }
+            const db = window.supabaseClient;
+            if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
-            if (!empresaId) return;
+            const statusEl = document.getElementById('status-importacao');
 
-            const { data, error } = await dbClient.from('devolucoes').select('*').eq('empresa_id', empresaId).order('data_devolucao', { ascending: false });
-            if (error) {
-                console.error('Erro ao carregar devoluções:', error);
-                return;
+            // Lê todos os arquivos e coleta as linhas
+            let todasLinhas = [];
+            for (let i = 0; i < listaArquivos.length; i++) {
+                const file = listaArquivos[i];
+                statusEl.textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                // Mapeia as colunas para os campos da tabela
+                json.forEach(row => {
+                    todasLinhas.push({
+                        empresa_id: empresaId,
+                        codfornec: row['CODFORNEC'] || '',
+                        fornecedor: row['FORNECEDOR'] || '',
+                        numped: row['NUMPED'] || '',
+                        numnota: row['NUMNOTA'] || '',
+                        chavenfedev: row['CHAVENFEDEV'] || '',
+                        dtent: row['DTENT'] || '',
+                        codcli: row['CODCLI'] || '',
+                        cpfcnpj: row['CPFCNPJ'] || '',
+                        cliente: row['CLIENTE'] || '',
+                        codrca: row['CODRCA'] || '',
+                        nomerca: row['NOMERCA'] || '',
+                        codsupervisor: row['CODSUPERVISOR'] || '',
+                        nomesup: row['NOMESUP'] || '',
+                        numnotaven: row['NUMNOTAVEN'] || '',
+                        chavenfevend: row['CHAVENFEVEND'] || '',
+                        numcarregamento: row['NUMCARREGAMENTO'] || '',
+                        codprod: row['CODPROD'] || '',
+                        descricao: row['DESCRICAO'] || '',
+                        embalagem: row['EMBALAGEM'] || '',
+                        qt: row['QT'] || '',
+                        punit: row['PUNIT'] || '',
+                        custoultent: row['CUSTOULTENT'] || '',
+                        vltotal: row['VLTOTAL'] || '',
+                        nomefunc: row['NOMEFUNC'] || '',
+                        motivo: row['MOTIVO'] || '',
+                        numbonus: row['NUMBONUS'] || '',
+                        codfuncfecha: row['CODFUNCFECHA'] || '',
+                        nome: row['NOME'] || '',
+                        codmotorista: row['CODMOTORISTA'] || '',
+                        motorista: row['MOTORISTA'] || '',
+                        codrota: row['CODROTA'] || '',
+                        rota: row['ROTA'] || '',
+                        veiculo: row['VEICULO'] || '',
+                        placa: row['PLACA'] || ''
+                    });
+                });
             }
 
+            // Insere em lotes de 500
+            statusEl.textContent = `Inserindo ${todasLinhas.length} registros no banco...`;
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < todasLinhas.length; i += CHUNK_SIZE) {
+                const chunk = todasLinhas.slice(i, i + CHUNK_SIZE);
+                const { error } = await db.from('devolucoes').insert(chunk);
+                if (error) { alert('Erro ao inserir: ' + error.message); return; }
+            }
+            statusEl.textContent = 'Importação concluída!';
+            listaArquivos = [];
+            await carregarDevolucoes();
+        }
+
+        async function atualizarBanco() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            if (!confirm('Isso vai apagar TODOS os dados atuais e importar os arquivos selecionados. Deseja continuar?')) return;
+
+            // Apaga tudo
+            const { error: delErr } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
+            if (delErr) { alert('Erro ao apagar: ' + delErr.message); return; }
+
+            // Se houver arquivos, processa e insere
+            if (listaArquivos.length > 0) {
+                await processarArquivos();
+            } else {
+                document.getElementById('status-importacao').textContent = 'Nenhum arquivo selecionado para reimportar. Dados apagados.';
+                await carregarDevolucoes();
+            }
+        }
+
+        async function carregarDevolucoes() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).order('created_at', { ascending: false });
+            if (error) return;
             const tbody = document.getElementById('tabela-devolucoes');
             if (!tbody) return;
-            
             tbody.innerHTML = '';
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">Nenhuma devolução registrada</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #64748b;">Nenhuma devolução registrada</td></tr>';
                 return;
             }
-
             data.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
                 tr.innerHTML = `
-                    <td style="padding: 10px;">${item.data_devolucao || ''}</td>
-                    <td style="padding: 10px;">${item.cod_produto || ''}</td>
+                    <td style="padding: 10px;">${item.dtent || ''}</td>
+                    <td style="padding: 10px;">${item.fornecedor || ''}</td>
                     <td style="padding: 10px;">${item.descricao || ''}</td>
-                    <td style="padding: 10px;">${item.quantidade || ''}</td>
+                    <td style="padding: 10px;">${item.qt || ''}</td>
+                    <td style="padding: 10px;">${item.cliente || ''}</td>
                     <td style="padding: 10px;">${item.motivo || ''}</td>
                     <td style="padding: 10px;">
                         <button onclick="excluirDevolucao('${item.id}')" style="background: transparent; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button>
@@ -260,91 +298,14 @@
             });
         }
 
-        // Funções de modal para devoluções (criadas dinamicamente)
-        function abrirModalDevolucao() {
-            // Cria o modal dinamicamente se não existir
-            let modal = document.getElementById('modal-devolucao');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'modal-devolucao';
-                modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(30,58,138,0.4); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 999;';
-                modal.innerHTML = `
-                    <div style="background: white; border-radius: 24px; padding: 30px; max-width: 600px; width: 95%;">
-                        <h3 style="color: #1e3a8a; margin-bottom: 20px;">Registrar Devolução</h3>
-                        <form id="form-devolucao" onsubmit="event.preventDefault(); salvarDevolucao();">
-                            <div style="display: grid; gap: 15px;">
-                                <div>
-                                    <label style="color: #64748b;">Código do Produto</label>
-                                    <input type="text" id="cod_produto" placeholder="Ex: 12345" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                                </div>
-                                <div>
-                                    <label style="color: #64748b;">Descrição</label>
-                                    <input type="text" id="descricao" placeholder="Nome do produto" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                                </div>
-                                <div>
-                                    <label style="color: #64748b;">Quantidade</label>
-                                    <input type="number" id="quantidade" placeholder="Ex: 2" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                                </div>
-                                <div>
-                                    <label style="color: #64748b;">Motivo</label>
-                                    <select id="motivo" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                                        <option value="Produto danificado">Produto danificado</option>
-                                        <option value="Cliente desistiu">Cliente desistiu</option>
-                                        <option value="Erro de expedição">Erro de expedição</option>
-                                        <option value="Outro">Outro</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="color: #64748b;">Data da Devolução</label>
-                                    <input type="date" id="data_devolucao" value="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px;">
-                                <button type="button" onclick="document.getElementById('modal-devolucao').style.display='none'; document.getElementById('form-devolucao').reset();" class="btn-outline">Cancelar</button>
-                                <button type="submit" class="btn-primary"><i class="fas fa-check"></i> Salvar</button>
-                            </div>
-                        </form>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-            }
-            modal.style.display = 'flex';
-        }
-
-        async function salvarDevolucao() {
-            const dbClient = window.supabaseClient;
-            if (!dbClient) return;
-
-            const empresaId = localStorage.getItem('empresaId');
-            const cod_produto = document.getElementById('cod_produto').value.trim();
-            const descricao = document.getElementById('descricao').value.trim();
-            const quantidade = document.getElementById('quantidade').value;
-            const motivo = document.getElementById('motivo').value;
-            const data_devolucao = document.getElementById('data_devolucao').value || null;
-
-            if (!cod_produto || !descricao) { alert('Preencha código e descrição.'); return; }
-
-            const novaDevolucao = { empresa_id: empresaId, cod_produto, descricao, quantidade: parseInt(quantidade) || 0, motivo, data_devolucao };
-
-            const { error } = await dbClient.from('devolucoes').insert(novaDevolucao);
-            if (error) { alert('Erro ao salvar: ' + error.message); return; }
-            
-            document.getElementById('modal-devolucao').style.display = 'none';
-            document.getElementById('form-devolucao').reset();
-            carregarDevolucoes();
-        }
-
         async function excluirDevolucao(id) {
-            if (!confirm('Deseja excluir esta devolução?')) return;
-            const dbClient = window.supabaseClient;
-            if (!dbClient) return;
-
-            const { error } = await dbClient.from('devolucoes').delete().eq('id', id);
-            if (error) { alert('Erro ao excluir: ' + error.message); return; }
+            if (!confirm('Excluir este registro?')) return;
+            const db = window.supabaseClient;
+            const { error } = await db.from('devolucoes').delete().eq('id', id);
+            if (error) { alert('Erro: ' + error.message); return; }
             carregarDevolucoes();
         }
 
-        // ================== LOGOUT ==================
         function logout() {
             localStorage.removeItem('isLoggedIn');
             localStorage.removeItem('userName');
@@ -353,11 +314,9 @@
             window.location.href = 'index.html';
         }
 
-        // ================== INICIALIZAÇÃO ==================
         document.addEventListener('DOMContentLoaded', async () => {
             await carregarUsuario();
             await carregarEmpresa();
-            // Carrega a seção de devoluções por padrão (opcional)
             loadSection('devolucoes');
         });
     </script>

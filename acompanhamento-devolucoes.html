@@ -547,7 +547,7 @@
             return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()} ${String(data.getHours()).padStart(2, '0')}:${String(data.getMinutes()).padStart(2, '0')}`;
         }
 
-        // CORRIGIDO: usa Map para garantir apenas 1 registro por arquivo (mais recente)
+        // CORRIGIDO: Agrupa por nome + tamanho (chave única)
         async function carregarBancosImportados() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -570,10 +570,10 @@
                 return;
             }
 
-            // Usa um Map para manter apenas a última importação de cada arquivo (mais recente)
+            // Usa um Map para manter apenas a última importação (por nome + tamanho)
             const mapArquivos = new Map();
             data.forEach(item => {
-                const chave = `${item.nome_arquivo}_${item.data_criacao}`;
+                const chave = `${item.nome_arquivo}_${item.tamanho_arquivo}`;
                 if (!mapArquivos.has(chave)) {
                     mapArquivos.set(chave, item);
                 }
@@ -687,18 +687,18 @@
             return todasLinhas;
         }
 
-        // CORREÇÃO: Upsert no histórico (insere se não existe, atualiza se já existe)
+        // CORREÇÃO DEFINITIVA: Usa nome + tamanho como chave única
         async function registrarHistorico(nomeArquivo, dataModificacao, linhas, tamanho) {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
 
-            // Verifica se já existe um registro com o mesmo arquivo e data de modificação
+            // Verifica se já existe um arquivo com o MESMO NOME e MESMO TAMANHO
             const { data: existente, error: erroBusca } = await db.from('historico_importacoes')
                 .select('id')
                 .eq('empresa_id', empresaId)
                 .eq('nome_arquivo', nomeArquivo)
-                .eq('data_criacao', dataModificacao)
+                .eq('tamanho_arquivo', tamanho)
                 .eq('categoria', 'devolucoes')
                 .maybeSingle();
 
@@ -708,13 +708,13 @@
             }
 
             if (existente) {
-                // Atualiza data de importação e tamanho
+                // Se já existe, ATUALIZA a data de modificação e a data de importação
                 const { error: erroUpdate } = await db.from('historico_importacoes')
-                    .update({ data_importacao: new Date().toISOString(), tamanho_arquivo: tamanho })
+                    .update({ data_criacao: dataModificacao, data_importacao: new Date().toISOString() })
                     .eq('id', existente.id);
                 if (erroUpdate) console.error('Erro ao atualizar histórico:', erroUpdate);
             } else {
-                // Insere novo
+                // Se não existe, INSERE
                 const { error: erroInsert } = await db.from('historico_importacoes').insert({
                     empresa_id: empresaId,
                     nome_arquivo: nomeArquivo,
@@ -743,7 +743,7 @@
             }
             ocultarCarregamento();
 
-            // Registrar histórico de cada arquivo (agora com data de modificação real)
+            // Registrar histórico de cada arquivo (nome + tamanho = chave única)
             for (const file of listaArquivos) {
                 const tamanho = (file.size / 1024).toFixed(2) + ' KB';
                 const dataMod = new Date(file.lastModified).toISOString();

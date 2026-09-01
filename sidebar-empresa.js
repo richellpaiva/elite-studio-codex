@@ -13,6 +13,7 @@ async function injetarSidebar() {
     let logoUrl = '';
     let nomeEmpresa = 'Empresa';
 
+    // Busca dados da empresa no banco
     if (empresaId) {
         const { data, error } = await db.from('empresas').select('razao, logo').eq('id', empresaId).single();
         if (!error && data) {
@@ -21,15 +22,21 @@ async function injetarSidebar() {
         }
     }
 
+    // Define o HTML do logo (imagem ou placeholder)
     const logoHTML = logoUrl 
         ? `<img src="${logoUrl}" alt="Logo" id="empresa-logo-img" style="max-width: 120px; max-height: 80px; object-fit: contain; margin: 0 auto; transition: all 0.3s ease;">`
         : `<div style="width: 60px; height: 60px; background: #e0f2fe; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 30px; margin: 0 auto;"><i class="fas fa-building"></i></div>`;
 
+    // Monta o HTML da sidebar
     container.innerHTML = `
         <div id="sidebar" style="position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: all 0.3s ease;">
+            
+            <!-- Logo centralizada -->
             <div style="text-align: center; margin-bottom: 15px;">
                 ${logoHTML}
             </div>
+
+            <!-- Nome da empresa -->
             <h2 id="empresa-nome-sidebar" style="color: #1e3a8a; text-align: center; font-size: 1.1rem; margin-bottom: 30px; word-wrap: break-word;">${nomeEmpresa}</h2>
             
             <!-- Botão recolher/expandir -->
@@ -39,15 +46,12 @@ async function injetarSidebar() {
                 </button>
             </div>
 
-            <!-- Menu -->
-            <nav style="display: flex; flex-direction: column; gap: 8px;">
-                <a href="acompanhamento-devolucoes.html" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #1e3a8a; text-decoration: none; padding: 12px; border-radius: 12px; transition: 0.3s; font-weight: 500;">
-                    <i class="fas fa-undo-alt" style="color: #3b82f6; font-size: 1.2rem; min-width: 20px;"></i>
-                    <span class="menu-text">Acompanhamento de Devoluções</span>
-                </a>
+            <!-- Área de navegação (os links serão preenchidos pelo painel-empresa.html) -->
+            <nav id="nav-menu" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Conteúdo dinâmico -->
             </nav>
 
-            <!-- Rodapé -->
+            <!-- Rodapé fixo -->
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(59,130,246,0.2);">
                 <a href="home.html" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #64748b; text-decoration: none; padding: 10px;">
                     <i class="fas fa-arrow-left" style="min-width: 20px;"></i>
@@ -61,10 +65,16 @@ async function injetarSidebar() {
         </div>
     `;
     
+    // Ajusta o margin-left do conteúdo principal baseado na sidebar
     const mainContent = document.querySelector('.main-content-empresa');
     if (mainContent) mainContent.style.marginLeft = '280px';
 
-    // Função de toggle sidebar (global)
+    // Chama a função de personalização definida no painel-empresa.html (se existir)
+    if (typeof window.afterSidebarInjected === 'function') {
+        window.afterSidebarInjected();
+    }
+
+    // Define a função global de toggle (recolher/expandir)
     window.toggleSidebar = function() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.querySelector('.main-content-empresa');

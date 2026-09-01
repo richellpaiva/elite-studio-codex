@@ -4,6 +4,7 @@
 const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
 
+// Cria o cliente global para usar em todas as páginas
 let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

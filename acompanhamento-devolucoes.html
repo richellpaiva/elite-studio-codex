@@ -120,12 +120,15 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
+        // Definição das colunas (ID_NFE_PRODUT adicionado)
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
             { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
             { key: 'fornecedor_principal', label: 'FORNEC_PRINCIPAL', tipo: 'texto' },
             { key: 'numped', label: 'NUMPED', tipo: 'inteiro' },
             { key: 'numnota', label: 'NUMNOTA', tipo: 'inteiro' },
+            { key: 'codprod', label: 'COD_PROD', tipo: 'inteiro' },
+            { key: 'id_nfe_produt', label: 'ID_NFE_PRODUT', tipo: 'texto' },
             { key: 'chavenfedev', label: 'CHAVE_NFE_DEV', tipo: 'texto' },
             { key: 'dtent', label: 'DT_ENT', tipo: 'data' },
             { key: 'codcli', label: 'COD_CLI', tipo: 'inteiro' },
@@ -138,7 +141,6 @@
             { key: 'numnotaven', label: 'NUMNOTAVEN', tipo: 'inteiro' },
             { key: 'chavenfevend', label: 'CHAVE_NFE_VEND', tipo: 'texto' },
             { key: 'numcarregamento', label: 'NUM_CARREG', tipo: 'texto' },
-            { key: 'codprod', label: 'COD_PROD', tipo: 'inteiro' },
             { key: 'descricao', label: 'DESCRICAO', tipo: 'texto' },
             { key: 'embalagem', label: 'EMBALAGEM', tipo: 'texto' },
             { key: 'qt', label: 'QT', tipo: 'inteiro' },
@@ -162,6 +164,7 @@
             { titulo: 'Fornecedores', coluna: 'fornecedor' },
             { titulo: 'Fornecedor Principal', coluna: 'fornecedor_principal' },
             { titulo: 'Código Produto', coluna: 'codprod' },
+            { titulo: 'ID NFE Produto', coluna: 'id_nfe_produt' },
             { titulo: 'Descrição', coluna: 'descricao' },
             { titulo: 'Motivo', coluna: 'motivo' },
             { titulo: 'Vendedores', coluna: 'nomerca' },
@@ -171,9 +174,7 @@
             { titulo: 'Placas', coluna: 'placa' }
         ];
 
-        // Cache para valores distintos (evita repetir consultas)
         let cacheValores = {};
-
         let listaArquivos = [];
         let todosDados = [];
         let todosFiltrados = [];
@@ -218,7 +219,7 @@
             }
         }
 
-        // OTIMIZADO: Usa a função RPC para obter valores distintos
+        // Função otimizada para valores distintos (RPC + cache)
         async function abrirModalFiltro(coluna) {
             const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
             if (!filtro) return;
@@ -226,7 +227,6 @@
             document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
             document.getElementById('modal-filtro-busca').value = '';
 
-            // Se já tiver em cache, usa direto
             if (cacheValores[coluna]) {
                 preencherLista(cacheValores[coluna]);
                 document.getElementById('modal-filtro-overlay').style.display = 'flex';
@@ -237,20 +237,32 @@
             const db = window.supabaseClient;
             if (!db) { ocultarCarregamento(); return; }
 
-            // Chama a função SQL (rápida)
-            const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
-            if (error) {
-                console.error('Erro na RPC:', error);
-                // Fallback: busca paginada (caso a função não exista)
-                return abrirModalFiltroFallback(coluna);
+            try {
+                const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
+                if (error) throw error;
+                const valores = (data || []).sort((a, b) => a.localeCompare(b));
+                cacheValores[coluna] = valores;
+                ocultarCarregamento();
+                preencherLista(valores);
+                document.getElementById('modal-filtro-overlay').style.display = 'flex';
+            } catch (e) {
+                console.warn('RPC falhou, usando fallback paginado');
+                let all = [];
+                let from = 0;
+                const pageSize = 1000;
+                while (true) {
+                    const { data, error } = await db.from('devolucoes').select(coluna).not(coluna, 'is', null).range(from, from + pageSize - 1);
+                    if (error) break;
+                    all = all.concat(data.map(item => item[coluna]));
+                    if (data.length < pageSize) break;
+                    from += pageSize;
+                }
+                const valores = [...new Set(all.filter(v => v && v !== ''))].sort((a, b) => a.localeCompare(b));
+                cacheValores[coluna] = valores;
+                ocultarCarregamento();
+                preencherLista(valores);
+                document.getElementById('modal-filtro-overlay').style.display = 'flex';
             }
-
-            const valores = (data || []).sort((a, b) => a.localeCompare(b));
-            cacheValores[coluna] = valores;
-            ocultarCarregamento();
-
-            preencherLista(valores);
-            document.getElementById('modal-filtro-overlay').style.display = 'flex';
         }
 
         function preencherLista(valores) {
@@ -268,26 +280,6 @@
                 label.appendChild(document.createTextNode(' ' + val));
                 lista.appendChild(label);
             });
-        }
-
-        // Fallback (caso a RPC não exista)
-        async function abrirModalFiltroFallback(coluna) {
-            const db = window.supabaseClient;
-            let from = 0;
-            const pageSize = 1000;
-            let all = [];
-            while (true) {
-                const { data, error } = await db.from('devolucoes').select(coluna).not(coluna, 'is', null).range(from, from + pageSize - 1);
-                if (error) break;
-                all = all.concat(data.map(item => item[coluna]));
-                if (data.length < pageSize) break;
-                from += pageSize;
-            }
-            const valores = [...new Set(all.filter(v => v && v !== ''))].sort((a, b) => a.localeCompare(b));
-            cacheValores[coluna] = valores;
-            ocultarCarregamento();
-            preencherLista(valores);
-            document.getElementById('modal-filtro-overlay').style.display = 'flex';
         }
 
         function fecharModalFiltro() {
@@ -405,6 +397,39 @@
             document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
         }
 
+        // CORREÇÃO DA MOEDA (SEM multiplicar por 100)
+        function formatarMoeda(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            
+            // Se for número, formata direto
+            if (typeof valor === 'number') {
+                return 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            
+            // Se for string, tenta detectar formato
+            let str = String(valor).trim().replace(/R\$/g, '').replace(/\s/g, '');
+            
+            // Se contém vírgula, assume que é o separador decimal (formato BR)
+            if (str.includes(',')) {
+                // Remove pontos (separador de milhar)
+                str = str.replace(/\./g, '');
+                // Substitui vírgula por ponto
+                str = str.replace(',', '.');
+            } else {
+                // Se não tem vírgula, pode ser número com ponto decimal
+                // Mas se tiver mais de um ponto, assume que o último é decimal
+                const partes = str.split('.');
+                if (partes.length > 2) {
+                    // Ex: 1.904.00 -> trata como milhar e decimal
+                    str = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1];
+                }
+            }
+            
+            let num = parseFloat(str);
+            if (isNaN(num)) return valor;
+            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function formatarData(valor) {
             if (!valor) return '';
             if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
@@ -427,14 +452,6 @@
             let num = parseInt(String(valor).replace(/[^\d-]/g, ''), 10);
             if (isNaN(num)) return valor;
             return num.toString();
-        }
-
-        function formatarMoeda(valor) {
-            if (valor === null || valor === undefined || valor === '') return '';
-            let limpo = String(valor).replace(/[^\d,-]/g, '').replace(',', '.');
-            let num = parseFloat(limpo);
-            if (isNaN(num)) return valor;
-            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function formatarValor(valor, tipo) {
@@ -520,7 +537,7 @@
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
-            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos" ou "Substituir Tudo".`;
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos"`;
             event.target.value = '';
         }
 
@@ -531,20 +548,28 @@
             return 0;
         }
 
+        // Função modificada para incluir ID_NFE_PRODUT
         function mapearLinha(linha, empresaId) {
             const fornecedor = linha[1] ? String(linha[1]).trim() : '';
+            const numnota = linha[3] ? String(linha[3]).trim() : '';
+            const codprod = linha[16] ? String(linha[16]).trim() : '';
+            const id_nfe_produt = (numnota && codprod) ? `${numnota}|${codprod}` : '';
+            
             let fornecedorPrincipal = '';
             if (fornecedor) {
                 const palavras = fornecedor.split(' ').filter(p => p !== '');
                 fornecedorPrincipal = palavras.slice(0, 2).join(' ');
             }
+            
             return {
                 empresa_id: empresaId,
                 codfornec: linha[0] || '',
                 fornecedor: fornecedor,
                 fornecedor_principal: fornecedorPrincipal,
                 numped: linha[2] || '',
-                numnota: linha[3] || '',
+                numnota: numnota,
+                codprod: codprod,
+                id_nfe_produt: id_nfe_produt,
                 chavenfedev: linha[4] || '',
                 dtent: linha[5] || '',
                 codcli: linha[6] || '',
@@ -557,7 +582,6 @@
                 numnotaven: linha[13] || '',
                 chavenfevend: linha[14] || '',
                 numcarregamento: linha[15] || '',
-                codprod: linha[16] || '',
                 descricao: linha[17] || '',
                 embalagem: linha[18] || '',
                 qt: linha[19] || '',
@@ -605,6 +629,7 @@
             return todasLinhas;
         }
 
+        // IMPORTAR SEM LIMPAR: Insere os dados e depois remove duplicados baseados em id_nfe_produt
         async function processarArquivos() {
             const db = window.supabaseClient;
             if (!db) { alert('Banco não conectado.'); return; }
@@ -620,9 +645,67 @@
                 if (error) { ocultarCarregamento(); alert('Erro ao inserir: ' + error.message); return; }
             }
             ocultarCarregamento();
-            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados com sucesso!`;
+            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados! Verificando duplicados...`;
+            
+            // Chama a deduplicação automaticamente após importar
+            await removerDuplicados();
+            
             listaArquivos = [];
             await carregarDevolucoes();
+        }
+
+        // Função de deduplicação (remove duplicados por ID_NFE_PRODUT, mantendo o mais recente)
+        async function removerDuplicados() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            
+            mostrarCarregamento('Removendo duplicados e verificando integridade...');
+            try {
+                // Busca todos os IDs duplicados com contagem > 1
+                const { data: duplicados, error } = await db.rpc('get_duplicados', { p_empresa_id: empresaId });
+                
+                if (error) {
+                    console.error('Erro na RPC de duplicados:', error);
+                    // Fallback: busca todos os registros e agrupa manualmente (cuidado com performance)
+                    const { data: todos } = await db.from('devolucoes').select('id, id_nfe_produt, created_at').eq('empresa_id', empresaId);
+                    const map = {};
+                    todos.forEach(item => {
+                        if (!item.id_nfe_produt) return;
+                        if (!map[item.id_nfe_produt]) map[item.id_nfe_produt] = [];
+                        map[item.id_nfe_produt].push(item);
+                    });
+                    duplicados = Object.entries(map).filter(([key, val]) => val.length > 1).map(([key, val]) => ({ id_nfe_produt: key, quantidade: val.length }));
+                }
+                
+                if (!duplicados || duplicados.length === 0) {
+                    ocultarCarregamento();
+                    document.getElementById('status-importacao').textContent = 'Nenhum duplicado encontrado. Banco íntegro!';
+                    return;
+                }
+                
+                let totalDuplicados = duplicados.length;
+                let processados = 0;
+                
+                for (const dup of duplicados) {
+                    // Busca os IDs duplicados
+                    const { data: registros } = await db.from('devolucoes').select('id').eq('id_nfe_produt', dup.id_nfe_produt).order('created_at', { ascending: false });
+                    // Mantém o mais recente (primeiro) e remove os demais
+                    if (registros.length > 1) {
+                        const idsParaRemover = registros.slice(1).map(r => r.id);
+                        await db.from('devolucoes').delete().in('id', idsParaRemover);
+                    }
+                    processados++;
+                    atualizarProgresso(Math.round((processados / totalDuplicados) * 100));
+                }
+                
+                ocultarCarregamento();
+                document.getElementById('status-importacao').textContent = `✅ ${totalDuplicados} grupos duplicados removidos. Banco íntegro!`;
+            } catch (e) {
+                console.error('Erro ao remover duplicados:', e);
+                ocultarCarregamento();
+                alert('Erro ao remover duplicados: ' + e.message);
+            }
         }
 
         async function substituirTudo() {
@@ -635,8 +718,12 @@
             const { error } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
             ocultarCarregamento();
             if (error) { alert('Erro ao apagar: ' + error.message); return; }
-            if (listaArquivos.length > 0) { await processarArquivos(); }
-            else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
+            if (listaArquivos.length > 0) {
+                await processarArquivos();
+            } else {
+                document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.';
+                await carregarDevolucoes();
+            }
         }
 
         async function carregarDevolucoes() {

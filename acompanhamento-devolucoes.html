@@ -27,7 +27,7 @@
             </div>
         </div>
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
-        <div id="status-importacao" style="margin-bottom: 15px; color: #64748b;"></div>
+        <div id="status-importacao" style="margin-bottom: 15px; color: #64748b; font-weight: 600;"></div>
         
         <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -56,8 +56,61 @@
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
-            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Atualizar Banco" para processar.`;
+            const status = document.getElementById('status-importacao');
+            status.textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Atualizar Banco" para processar.`;
+            console.log("Arquivos selecionados:", listaArquivos.map(f => f.name));
             event.target.value = '';
+        }
+
+        // Função para detectar a linha de cabeçalho em uma matriz de dados
+        function detectarCabecalho(matriz) {
+            // Procura uma linha que contenha "CODFORNEC" ou "FORNECEDOR" na primeira coluna
+            for (let i = 0; i < matriz.length; i++) {
+                if (matriz[i] && matriz[i][0] === 'CODFORNEC') return i;
+            }
+            // Se não encontrar, assume a primeira linha
+            return 0;
+        }
+
+        // Função para mapear uma linha de dados com base nos índices das colunas
+        function mapearLinha(linha, empresaId) {
+            return {
+                empresa_id: empresaId,
+                codfornec: linha[0] || '',
+                fornecedor: linha[1] || '',
+                numped: linha[2] || '',
+                numnota: linha[3] || '',
+                chavenfedev: linha[4] || '',
+                dtent: linha[5] || '',
+                codcli: linha[6] || '',
+                cpfcnpj: linha[7] || '',
+                cliente: linha[8] || '',
+                codrca: linha[9] || '',
+                nomerca: linha[10] || '',
+                codsupervisor: linha[11] || '',
+                nomesup: linha[12] || '',
+                numnotaven: linha[13] || '',
+                chavenfevend: linha[14] || '',
+                numcarregamento: linha[15] || '',
+                codprod: linha[16] || '',
+                descricao: linha[17] || '',
+                embalagem: linha[18] || '',
+                qt: linha[19] || '',
+                punit: linha[20] || '',
+                custoultent: linha[21] || '',
+                vltotal: linha[22] || '',
+                nomefunc: linha[23] || '',
+                motivo: linha[24] || '',
+                numbonus: linha[25] || '',
+                codfuncfecha: linha[26] || '',
+                nome: linha[27] || '',
+                codmotorista: linha[28] || '',
+                motorista: linha[29] || '',
+                codrota: linha[30] || '',
+                rota: linha[31] || '',
+                veiculo: linha[32] || '',
+                placa: linha[33] || ''
+            };
         }
 
         async function processarArquivos() {
@@ -71,70 +124,55 @@
             for (let i = 0; i < listaArquivos.length; i++) {
                 const file = listaArquivos[i];
                 statusEl.textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
+                console.log(`Iniciando processamento do arquivo: ${file.name}`);
                 try {
                     const data = await file.arrayBuffer();
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
                     
-                    json.forEach(row => {
-                        todasLinhas.push({
-                            empresa_id: empresaId,
-                            codfornec: row['CODFORNEC'] || '',
-                            fornecedor: row['FORNECEDOR'] || '',
-                            numped: row['NUMPED'] || '',
-                            numnota: row['NUMNOTA'] || '',
-                            chavenfedev: row['CHAVENFEDEV'] || '',
-                            dtent: row['DTENT'] || '',
-                            codcli: row['CODCLI'] || '',
-                            cpfcnpj: row['CPFCNPJ'] || '',
-                            cliente: row['CLIENTE'] || '',
-                            codrca: row['CODRCA'] || '',
-                            nomerca: row['NOMERCA'] || '',
-                            codsupervisor: row['CODSUPERVISOR'] || '',
-                            nomesup: row['NOMESUP'] || '',
-                            numnotaven: row['NUMNOTAVEN'] || '',
-                            chavenfevend: row['CHAVENFEVEND'] || '',
-                            numcarregamento: row['NUMCARREGAMENTO'] || '',
-                            codprod: row['CODPROD'] || '',
-                            descricao: row['DESCRICAO'] || '',
-                            embalagem: row['EMBALAGEM'] || '',
-                            qt: row['QT'] || '',
-                            punit: row['PUNIT'] || '',
-                            custoultent: row['CUSTOULTENT'] || '',
-                            vltotal: row['VLTOTAL'] || '',
-                            nomefunc: row['NOMEFUNC'] || '',
-                            motivo: row['MOTIVO'] || '',
-                            numbonus: row['NUMBONUS'] || '',
-                            codfuncfecha: row['CODFUNCFECHA'] || '',
-                            nome: row['NOME'] || '',
-                            codmotorista: row['CODMOTORISTA'] || '',
-                            motorista: row['MOTORISTA'] || '',
-                            codrota: row['CODROTA'] || '',
-                            rota: row['ROTA'] || '',
-                            veiculo: row['VEICULO'] || '',
-                            placa: row['PLACA'] || ''
-                        });
-                    });
+                    // Converte para matriz (array de arrays) para ter controle total
+                    const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                    console.log(`Arquivo ${file.name}: ${matriz.length} linhas lidas.`);
+                    
+                    // Detecta a linha onde estão os cabeçalhos
+                    const linhaCabecalho = detectarCabecalho(matriz);
+                    console.log(`Linha de cabeçalho detectada: ${linhaCabecalho}`);
+                    
+                    // Pega todas as linhas de dados após a linha de cabeçalho
+                    for (let j = linhaCabecalho + 1; j < matriz.length; j++) {
+                        const linha = matriz[j];
+                        // Verifica se a linha não está vazia (primeira coluna tem algo)
+                        if (linha && linha[0] !== '' && linha[0] !== undefined && linha[0] !== null) {
+                            todasLinhas.push(mapearLinha(linha, empresaId));
+                        }
+                    }
                 } catch (e) {
+                    console.error("Erro ao ler arquivo:", file.name, e);
                     alert('Erro ao ler arquivo ' + file.name + ': ' + e.message);
                     return;
                 }
             }
 
+            console.log("Total de linhas a inserir:", todasLinhas.length);
             if (todasLinhas.length === 0) {
-                statusEl.textContent = 'Nenhuma linha válida encontrada nos arquivos.';
+                statusEl.textContent = 'Nenhuma linha válida encontrada nos arquivos. Verifique se a planilha tem cabeçalhos na primeira linha ou se os dados estão preenchidos.';
                 return;
             }
 
-            statusEl.textContent = `Inserindo ${todasLinhas.length} registros...`;
+            statusEl.textContent = `Inserindo ${todasLinhas.length} registros no banco...`;
             const CHUNK_SIZE = 500;
             for (let i = 0; i < todasLinhas.length; i += CHUNK_SIZE) {
                 const chunk = todasLinhas.slice(i, i + CHUNK_SIZE);
+                console.log(`Inserindo lote ${Math.floor(i/CHUNK_SIZE)+1} com ${chunk.length} registros`);
                 const { error } = await db.from('devolucoes').insert(chunk);
-                if (error) { alert('Erro ao inserir: ' + error.message); return; }
+                if (error) {
+                    console.error("Erro ao inserir lote:", error);
+                    alert('Erro ao inserir dados: ' + error.message);
+                    return;
+                }
             }
-            statusEl.textContent = 'Importação concluída!';
+            statusEl.textContent = 'Importação concluída com sucesso!';
+            console.log("Importação finalizada com sucesso.");
             listaArquivos = [];
             await carregarDevolucoes();
         }
@@ -143,17 +181,26 @@
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
-            if (!confirm('Isso vai apagar TODOS os dados e importar os arquivos. Deseja continuar?')) return;
+            
+            // Confirmação antes de apagar
+            if (!confirm('Isso vai apagar TODOS os dados atuais e importar os arquivos selecionados. Deseja continuar?')) return;
 
             const statusEl = document.getElementById('status-importacao');
             statusEl.textContent = 'Apagando dados antigos...';
+            console.log("Apagando dados antigos para empresa:", empresaId);
             const { error: delErr } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
-            if (delErr) { alert('Erro ao apagar: ' + delErr.message); return; }
+            if (delErr) {
+                console.error("Erro ao apagar:", delErr);
+                alert('Erro ao apagar: ' + delErr.message);
+                return;
+            }
+            console.log("Dados antigos apagados.");
 
             if (listaArquivos.length > 0) {
                 await processarArquivos();
             } else {
                 statusEl.textContent = 'Nenhum arquivo selecionado. Dados apagados.';
+                console.log("Nenhum arquivo para importar.");
                 await carregarDevolucoes();
             }
         }
@@ -163,7 +210,11 @@
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
             const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).order('created_at', { ascending: false });
-            if (error) return;
+            if (error) {
+                console.error("Erro ao carregar devoluções:", error);
+                return;
+            }
+            console.log("Devoluções carregadas:", data.length);
             const tbody = document.getElementById('tabela-devolucoes');
             tbody.innerHTML = '';
             if (data.length === 0) {
@@ -197,8 +248,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // O sidebar será injetado automaticamente pelo sidebar-empresa.js
-            // Precisamos garantir que o carregamento das devoluções aconteça APÓS o supabase estar pronto
             const wait = setInterval(() => {
                 if (window.supabaseClient) {
                     clearInterval(wait);

@@ -120,7 +120,6 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
-        // Definição das colunas (incluindo fornecedor_principal)
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
             { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
@@ -182,10 +181,341 @@
         let filtroAtual = null;
         let sortState = { col: null, asc: true };
 
-        // (Todas as funções de carregamento, filtro, ordenação etc. permanecem iguais)
-        // ...
-        // ================== IMPORTAÇÃO ==================
-        // Na função mapearLinha, adicione a extração:
+        function mostrarCarregamento(texto = 'Carregando...') {
+            document.getElementById('texto-carregamento').textContent = texto;
+            document.getElementById('overlay-carregamento').style.display = 'flex';
+            atualizarProgresso(0);
+        }
+        function atualizarProgresso(percent) {
+            const barra = document.getElementById('barra-progresso');
+            const texto = document.getElementById('percentual-carregamento');
+            const circumference = 251.2;
+            const offset = circumference - (percent / 100) * circumference;
+            barra.style.strokeDashoffset = offset;
+            texto.textContent = percent + '%';
+        }
+        function ocultarCarregamento() {
+            document.getElementById('overlay-carregamento').style.display = 'none';
+        }
+
+        function toggleFiltros() {
+            const painel = document.getElementById('painel-filtros');
+            const texto = document.getElementById('texto-filtro');
+            const icone = document.getElementById('icone-filtro');
+            if (painel.style.display === 'none') {
+                painel.style.display = 'block';
+                texto.textContent = 'Ocultar Filtros';
+                icone.classList.remove('fa-filter');
+                icone.classList.add('fa-eye-slash');
+            } else {
+                painel.style.display = 'none';
+                texto.textContent = 'Mostrar Filtros';
+                icone.classList.remove('fa-eye-slash');
+                icone.classList.add('fa-filter');
+            }
+        }
+
+        async function abrirModalFiltro(coluna) {
+            const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
+            if (!filtro) return;
+            filtroAtual = coluna;
+            document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
+            document.getElementById('modal-filtro-busca').value = '';
+
+            mostrarCarregamento('Carregando opções...');
+            const db = window.supabaseClient;
+            if (!db) { ocultarCarregamento(); return; }
+            const empresaId = localStorage.getItem('empresaId');
+            
+            let todosValores = [];
+            let from = 0;
+            const pageSize = 1000;
+
+            while (true) {
+                const { data, error } = await db
+                    .from('devolucoes')
+                    .select(coluna)
+                    .eq('empresa_id', empresaId)
+                    .not(coluna, 'is', null)
+                    .range(from, from + pageSize - 1);
+                
+                if (error) {
+                    console.error('Erro ao buscar valores:', error);
+                    break;
+                }
+                
+                todosValores = todosValores.concat(data.map(item => item[coluna]));
+                
+                if (data.length < pageSize) {
+                    break;
+                }
+                from += pageSize;
+            }
+
+            const valores = [...new Set(todosValores.filter(v => v && v !== ''))].sort((a, b) => a.localeCompare(b));
+            
+            ocultarCarregamento();
+
+            const lista = document.getElementById('modal-filtro-lista');
+            lista.innerHTML = '';
+            const selecionados = filtrosSelecionados[coluna] || [];
+            
+            valores.forEach(val => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = val;
+                cb.checked = selecionados.includes(val);
+                cb.onchange = () => atualizarSelecaoModal();
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + val));
+                lista.appendChild(label);
+            });
+            
+            document.getElementById('modal-filtro-overlay').style.display = 'flex';
+        }
+
+        function fecharModalFiltro() {
+            document.getElementById('modal-filtro-overlay').style.display = 'none';
+            filtroAtual = null;
+        }
+
+        function filtrarOpcoesModal() {
+            const termo = document.getElementById('modal-filtro-busca').value.toLowerCase();
+            const lista = document.getElementById('modal-filtro-lista');
+            const labels = lista.querySelectorAll('label');
+            labels.forEach(label => {
+                const texto = label.textContent.toLowerCase();
+                label.style.display = texto.includes(termo) ? 'flex' : 'none';
+            });
+        }
+
+        function atualizarSelecaoModal() {
+            const lista = document.getElementById('modal-filtro-lista');
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]:checked');
+            const valores = Array.from(checkboxes).map(cb => cb.value);
+            if (filtroAtual) filtrosSelecionados[filtroAtual] = valores;
+        }
+
+        function selecionarTodosModal() {
+            const lista = document.getElementById('modal-filtro-lista');
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            atualizarSelecaoModal();
+        }
+
+        function limparSelecaoModal() {
+            const lista = document.getElementById('modal-filtro-lista');
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            atualizarSelecaoModal();
+        }
+
+        async function executarFiltros() {
+            mostrarCarregamento('Aplicando filtros...');
+            await new Promise(r => setTimeout(r, 50));
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+
+            const db = window.supabaseClient;
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            for (const filtro of FILTROS_DROPDOWN) {
+                const coluna = filtro.coluna;
+                const selecionados = filtrosSelecionados[coluna] || [];
+                if (selecionados.length > 0) query = query.in(coluna, selecionados);
+            }
+
+            const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+            if (countError) { console.error(countError); ocultarCarregamento(); return; }
+            totalRegistros = count;
+            paginaAtual = 1;
+
+            const { data, error } = await query.range(0, POR_PAGINA - 1);
+            ocultarCarregamento();
+            if (error) { console.error(error); return; }
+
+            todosFiltrados = data || [];
+            todosDados = data || [];
+            sortState = { col: null, asc: true };
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtro_data_inicio').value = '';
+            document.getElementById('filtro_data_fim').value = '';
+            filtrosSelecionados = {};
+            fecharModalFiltro();
+            carregarDevolucoes();
+        }
+
+        function mudarPagina(delta) {
+            const novaPagina = paginaAtual + delta;
+            if (novaPagina < 1) return;
+            carregarPagina(novaPagina);
+        }
+
+        async function carregarPagina(numero) {
+            paginaAtual = numero;
+            mostrarCarregamento('Carregando página...');
+            const db = window.supabaseClient;
+            const from = (paginaAtual - 1) * POR_PAGINA;
+            const to = from + POR_PAGINA - 1;
+
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            for (const filtro of FILTROS_DROPDOWN) {
+                const coluna = filtro.coluna;
+                const selecionados = filtrosSelecionados[coluna] || [];
+                if (selecionados.length > 0) query = query.in(coluna, selecionados);
+            }
+
+            const { data, error } = await query.range(from, to);
+            ocultarCarregamento();
+            if (error) { console.error(error); return; }
+
+            todosDados = data || [];
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        function atualizarInfoPagina() {
+            const totalPaginas = Math.ceil(totalRegistros / POR_PAGINA);
+            document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
+        }
+
+        function formatarData(valor) {
+            if (!valor) return '';
+            if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
+                const serial = Number(valor);
+                const data = new Date((serial - 25569) * 86400 * 1000);
+                const dia = String(data.getDate()).padStart(2, '0');
+                const mes = String(data.getMonth() + 1).padStart(2, '0');
+                const ano = data.getFullYear();
+                return `${dia}/${mes}/${ano}`;
+            }
+            if (String(valor).includes('-')) {
+                const [ano, mes, dia] = String(valor).split('-');
+                return `${dia}/${mes}/${ano}`;
+            }
+            return valor;
+        }
+
+        function formatarInteiro(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            let num = parseInt(String(valor).replace(/[^\d-]/g, ''), 10);
+            if (isNaN(num)) return valor;
+            return num.toString();
+        }
+
+        function formatarMoeda(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            let limpo = String(valor).replace(/[^\d,-]/g, '').replace(',', '.');
+            let num = parseFloat(limpo);
+            if (isNaN(num)) return valor;
+            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatarValor(valor, tipo) {
+            switch (tipo) {
+                case 'data': return formatarData(valor);
+                case 'inteiro': return formatarInteiro(valor);
+                case 'moeda': return formatarMoeda(valor);
+                default: return valor || '';
+            }
+        }
+
+        function ordenarPor(colKey) {
+            if (sortState.col === colKey) {
+                sortState.asc = !sortState.asc;
+            } else {
+                sortState.col = colKey;
+                sortState.asc = true;
+            }
+            const col = COLUNAS.find(c => c.key === colKey);
+            const sorted = [...todosDados].sort((a, b) => {
+                let valA = a[colKey];
+                let valB = b[colKey];
+                if (col.tipo === 'moeda') {
+                    let numA = parseFloat(String(valA).replace(/[^\d,-]/g, '').replace(',', '.'));
+                    let numB = parseFloat(String(valB).replace(/[^\d,-]/g, '').replace(',', '.'));
+                    if (!isNaN(numA) && !isNaN(numB)) return sortState.asc ? numA - numB : numB - numA;
+                } else if (col.tipo === 'inteiro') {
+                    let numA = parseInt(String(valA).replace(/[^\d-]/g, ''), 10);
+                    let numB = parseInt(String(valB).replace(/[^\d-]/g, ''), 10);
+                    if (!isNaN(numA) && !isNaN(numB)) return sortState.asc ? numA - numB : numB - numA;
+                } else if (col.tipo === 'data') {
+                    let dataA = formatarData(valA);
+                    let dataB = formatarData(valB);
+                    let dateA = new Date(dataA.split('/').reverse().join('-'));
+                    let dateB = new Date(dataB.split('/').reverse().join('-'));
+                    if (!isNaN(dateA) && !isNaN(dateB)) return sortState.asc ? dateA - dateB : dateB - dateA;
+                }
+                let strA = String(valA || '').toLowerCase();
+                let strB = String(valB || '').toLowerCase();
+                if (strA < strB) return sortState.asc ? -1 : 1;
+                if (strA > strB) return sortState.asc ? 1 : -1;
+                return 0;
+            });
+            todosDados = sorted;
+            renderizarTabela(todosDados);
+        }
+
+        function renderizarTabela(dados) {
+            const thead = document.getElementById('thead-tabela');
+            const tbody = document.getElementById('tabela-devolucoes');
+            thead.innerHTML = '<tr>' + COLUNAS.map(col => {
+                const sortIcon = sortState.col === col.key ? (sortState.asc ? '<i class="fas fa-sort-up sort-icon"></i>' : '<i class="fas fa-sort-down sort-icon"></i>') : '<i class="fas fa-sort sort-icon"></i>';
+                return `<th class="sortable" onclick="ordenarPor('${col.key}')" style="padding: 12px; font-weight: 600; white-space: nowrap;">${col.label}${sortIcon}</th>`;
+            }).join('') + '</tr>';
+            tbody.innerHTML = '';
+            if (dados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${COLUNAS.length}" style="text-align: center; padding: 20px; color: #64748b;">Nenhum registro encontrado</td></tr>`;
+                return;
+            }
+            dados.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
+                tr.innerHTML = COLUNAS.map(col => {
+                    let valor = formatarValor(item[col.key], col.tipo);
+                    return `<td style="padding: 8px; white-space: nowrap;">${valor}</td>`;
+                }).join('');
+                tbody.appendChild(tr);
+            });
+        }
+
+        function exportarExcel() {
+            if (todosDados.length === 0) { alert('Nenhum dado para exportar.'); return; }
+            const ws_data = [COLUNAS.map(col => col.label)];
+            todosDados.forEach(item => {
+                ws_data.push(COLUNAS.map(col => formatarValor(item[col.key], col.tipo)));
+            });
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Devoluções');
+            XLSX.writeFile(wb, 'devolucoes.xlsx');
+        }
+
+        function adicionarArquivos(event) {
+            const files = Array.from(event.target.files);
+            listaArquivos = listaArquivos.concat(files);
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos" ou "Substituir Tudo".`;
+            event.target.value = '';
+        }
+
+        function detectarCabecalho(matriz) {
+            for (let i = 0; i < matriz.length; i++) {
+                if (matriz[i] && matriz[i][0] === 'CODFORNEC') return i;
+            }
+            return 0;
+        }
+
         function mapearLinha(linha, empresaId) {
             const fornecedor = linha[1] ? String(linha[1]).trim() : '';
             const fornecedorPrincipal = fornecedor ? fornecedor.split(' ')[0] : '';
@@ -194,7 +524,6 @@
                 codfornec: linha[0] || '',
                 fornecedor: fornecedor,
                 fornecedor_principal: fornecedorPrincipal,
-                // ... resto dos campos
                 numped: linha[2] || '',
                 numnota: linha[3] || '',
                 chavenfedev: linha[4] || '',
@@ -229,7 +558,95 @@
                 placa: linha[33] || ''
             };
         }
-        // ... (restante do código de importação, filtros, paginação, etc. permanece igual)
+
+        async function lerArquivos() {
+            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return []; }
+            const empresaId = localStorage.getItem('empresaId');
+            let todasLinhas = [];
+            for (let i = 0; i < listaArquivos.length; i++) {
+                const file = listaArquivos[i];
+                document.getElementById('status-importacao').textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
+                try {
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                    const linhaCabecalho = detectarCabecalho(matriz);
+                    for (let j = linhaCabecalho + 1; j < matriz.length; j++) {
+                        const linha = matriz[j];
+                        if (linha && linha[0] !== '' && linha[0] !== undefined && linha[0] !== null) {
+                            todasLinhas.push(mapearLinha(linha, empresaId));
+                        }
+                    }
+                } catch (e) {
+                    alert('Erro ao ler arquivo ' + file.name + ': ' + e.message);
+                    return [];
+                }
+            }
+            return todasLinhas;
+        }
+
+        async function processarArquivos() {
+            const db = window.supabaseClient;
+            if (!db) { alert('Banco não conectado.'); return; }
+            const linhas = await lerArquivos();
+            if (linhas.length === 0) { document.getElementById('status-importacao').textContent = 'Nenhuma linha válida.'; return; }
+            document.getElementById('status-importacao').textContent = `Importando ${linhas.length} registros...`;
+            mostrarCarregamento('Importando dados...');
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < linhas.length; i += CHUNK_SIZE) {
+                const chunk = linhas.slice(i, i + CHUNK_SIZE);
+                atualizarProgresso(Math.round(((i + chunk.length) / linhas.length) * 100));
+                const { error } = await db.from('devolucoes').insert(chunk);
+                if (error) { ocultarCarregamento(); alert('Erro ao inserir: ' + error.message); return; }
+            }
+            ocultarCarregamento();
+            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados com sucesso!`;
+            listaArquivos = [];
+            await carregarDevolucoes();
+        }
+
+        async function substituirTudo() {
+            const db = window.supabaseClient;
+            if (!db) { alert('Banco não conectado.'); return; }
+            const empresaId = localStorage.getItem('empresaId');
+            if (!confirm('⚠️ Isso vai apagar TODOS os dados e importar os arquivos selecionados. Deseja continuar?')) return;
+            document.getElementById('status-importacao').textContent = 'Apagando dados antigos...';
+            mostrarCarregamento('Apagando dados antigos...');
+            const { error } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
+            ocultarCarregamento();
+            if (error) { alert('Erro ao apagar: ' + error.message); return; }
+            if (listaArquivos.length > 0) { await processarArquivos(); }
+            else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
+        }
+
+        async function carregarDevolucoes() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            mostrarCarregamento('Carregando dados...');
+            const { count, error: countError } = await db.from('devolucoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId);
+            if (countError) { console.error(countError); ocultarCarregamento(); return; }
+            totalRegistros = count || 0;
+            const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).range(0, POR_PAGINA - 1);
+            ocultarCarregamento();
+            if (error) { console.error(error); return; }
+            todosDados = data || [];
+            todosFiltrados = [...todosDados];
+            paginaAtual = 1;
+            sortState = { col: null, asc: true };
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const wait = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(wait);
+                    carregarDevolucoes();
+                }
+            }, 200);
+        });
     </script>
 </body>
 </html>

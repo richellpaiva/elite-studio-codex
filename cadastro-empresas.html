@@ -135,10 +135,8 @@
 
     <script src="script.js"></script>
     <script>
-        // Usa o cliente global que já está no script.js
         const dbClient = window.supabaseClient || null;
 
-        // ----- MÁSCARAS -----
         function mascaraCNPJ(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 14) value = value.slice(0, 14);
@@ -161,7 +159,6 @@
             input.value = value;
         }
 
-        // ----- LOGO -----
         function previewLogo(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -183,26 +180,14 @@
             document.getElementById('btn-remove-logo').style.display = 'none';
         }
 
-        // ----- CRUD (SUPABASE + FALLBACK LOCAL) -----
         let dados = [];
         let editandoId = null;
 
         async function carregarDados() {
-            if (dbClient) {
-                try {
-                    const { data, error } = await dbClient.from('empresas').select('*');
-                    if (!error && data) {
-                        dados = data;
-                    } else {
-                        throw error || new Error("Sem dados");
-                    }
-                } catch (e) {
-                    console.error('Erro ao buscar do Supabase, usando local:', e);
-                    dados = JSON.parse(localStorage.getItem('empresasData')) || [];
-                }
-            } else {
-                dados = JSON.parse(localStorage.getItem('empresasData')) || [];
-            }
+            if (!dbClient) { alert('Cliente Supabase não configurado. Verifique o script.js'); return; }
+            const { data, error } = await dbClient.from('empresas').select('*');
+            if (error) { console.error('Erro ao carregar empresas:', error); alert('Erro ao carregar do banco: ' + error.message); return; }
+            dados = data || [];
             renderizarTabela();
         }
 
@@ -298,10 +283,7 @@
         async function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
-            if (!razao || !cnpj) {
-                alert('Preencha Razão Social e CNPJ.');
-                return;
-            }
+            if (!razao || !cnpj) { alert('Preencha Razão Social e CNPJ.'); return; }
             const data_abertura = document.getElementById('data_abertura').value;
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
@@ -315,34 +297,20 @@
 
             const novoRegistro = { razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
 
-            if (dbClient) {
-                try {
-                    if (editandoId) {
-                        const { error } = await dbClient.from('empresas').update(novoRegistro).eq('id', editandoId);
-                        if (error) throw error;
-                    } else {
-                        const { error } = await dbClient.from('empresas').insert(novoRegistro);
-                        if (error) throw error;
-                    }
-                } catch (e) {
-                    console.error('Erro no Supabase, salvando local:', e);
-                    // Fallback local
-                    if (editandoId) {
-                        const index = dados.findIndex(d => d.id === editandoId);
-                        if (index !== -1) dados[index] = { id: editandoId, ...novoRegistro };
-                    } else {
-                        dados.push({ id: Date.now(), ...novoRegistro });
-                    }
-                    localStorage.setItem('empresasData', JSON.stringify(dados));
-                }
-            } else {
+            if (!dbClient) { alert('Cliente Supabase não configurado.'); return; }
+
+            try {
                 if (editandoId) {
-                    const index = dados.findIndex(d => d.id === editandoId);
-                    if (index !== -1) dados[index] = { id: editandoId, ...novoRegistro };
+                    const { error } = await dbClient.from('empresas').update(novoRegistro).eq('id', editandoId);
+                    if (error) throw error;
                 } else {
-                    dados.push({ id: Date.now(), ...novoRegistro });
+                    const { error } = await dbClient.from('empresas').insert(novoRegistro);
+                    if (error) throw error;
                 }
-                localStorage.setItem('empresasData', JSON.stringify(dados));
+            } catch (err) {
+                console.error('Erro detalhado:', err);
+                alert('Falha ao salvar no banco de dados. Nenhum dado foi salvo localmente. Detalhes: ' + err.message);
+                return; // Interrompe, não salva localmente
             }
 
             fecharModal();
@@ -350,33 +318,17 @@
         }
 
         async function editarRegistro(id) {
-            if (dbClient) {
-                try {
-                    const { data } = await dbClient.from('empresas').select('*').eq('id', id).single();
-                    if (data) {
-                        abrirModal(data);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Erro ao buscar do Supabase, usando local:', e);
-                }
-            }
-            const item = dados.find(d => d.id === id);
-            if (item) abrirModal(item);
+            if (!dbClient) return;
+            const { data, error } = await dbClient.from('empresas').select('*').eq('id', id).single();
+            if (error) { alert('Erro ao buscar empresa: ' + error.message); return; }
+            if (data) abrirModal(data);
         }
 
         async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            if (dbClient) {
-                try {
-                    const { error } = await dbClient.from('empresas').delete().eq('id', id);
-                    if (error) throw error;
-                } catch (e) {
-                    console.error('Erro no Supabase, excluindo local:', e);
-                }
-            }
-            dados = dados.filter(d => d.id !== id);
-            localStorage.setItem('empresasData', JSON.stringify(dados));
+            if (!dbClient) return;
+            const { error } = await dbClient.from('empresas').delete().eq('id', id);
+            if (error) { alert('Erro ao excluir: ' + error.message); return; }
             carregarDados();
         }
 

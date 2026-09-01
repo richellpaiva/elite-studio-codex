@@ -6,6 +6,8 @@
     <title>Acessar Empresas - Sistema de Auditoria</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- CARREGANDO A BIBLIOTECA DO SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="watermark"></div>
@@ -18,14 +20,16 @@
         </div>
 
         <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); border: 1px solid rgba(59,130,246,0.2); padding: 40px; border-radius: 24px; width: 100%; box-shadow: 0 20px 60px rgba(31,38,135,0.15);">
-            <form id="loginForm" style="width: 100%; display: flex; flex-direction: column; gap: 20px;">
+            <!-- ADICIONADO O onsubmit PARA CHAMAR handleLogin -->
+            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin(document.getElementById('login').value, document.getElementById('password').value);" style="width: 100%; display: flex; flex-direction: column; gap: 20px;">
                 <div>
-                    <input type="text" id="login" placeholder="Usuário (Login)" value="RICHELL" required>
+                    <input type="text" id="login" placeholder="Usuário (Login)" value="TESTE01" required>
                 </div>
                 <div>
-                    <input type="password" id="password" placeholder="Senha" value="951" required>
+                    <input type="password" id="password" placeholder="Senha" value="123" required>
                 </div>
                 
+                <!-- Este é o elemento de erro que a função handleLogin pode acionar -->
                 <p id="loginError" style="color: #ef4444; font-size: 0.9rem; display: none; text-align: center;">
                     <i class="fas fa-exclamation-circle"></i> Usuário ou senha incorretos.
                 </p>
@@ -37,21 +41,23 @@
         </div>
     </div>
 
+    <!-- Carrega o script.js que contém a função handleLogin -->
     <script src="script.js"></script>
+    
+    <!-- Script auxiliar para exibir erro caso o login falhe -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let users = JSON.parse(localStorage.getItem('users')) || [];
-            if (users.length === 0) {
-                users.push({ login: 'RICHELL', pass: '951', name: 'Administrador', empresaId: 1 });
-                localStorage.setItem('users', JSON.stringify(users));
-            }
+        // Essa função é chamada pelo script.js quando o login é inválido
+        window.showLoginError = function() {
+            document.getElementById('loginError').style.display = 'block';
+        };
+        // Essa função é chamada pelo script.js para esconder o erro se tentar de novo
+        window.hideLoginError = function() {
+            document.getElementById('loginError').style.display = 'none';
+        };
 
-            let empresas = JSON.parse(localStorage.getItem('empresas')) || [];
-            if (empresas.length === 0) {
-                empresas.push({ id: 1, nome: 'Empresa Demo', cnpj: '00.000.000/0001-00', cor: '#1e3a8a' });
-                localStorage.setItem('empresas', JSON.stringify(empresas));
-            }
-        });
+        // Limpa o erro quando o usuário começa a digitar
+        document.getElementById('login').addEventListener('input', window.hideLoginError);
+        document.getElementById('password').addEventListener('input', window.hideLoginError);
     </script>
 </body>
 </html>

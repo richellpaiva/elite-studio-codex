@@ -155,6 +155,8 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
+        // ... (todo o código do seu arquivo anterior, incluindo as funções de importação, filtros, etc.)
+        // Para garantir, vou incluir as principais funções novamente
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
             { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
@@ -702,7 +704,6 @@
             }
             ocultarCarregamento();
 
-            // Registrar histórico de cada arquivo
             for (const file of listaArquivos) {
                 const tamanho = (file.size / 1024).toFixed(2) + ' KB';
                 await registrarHistorico(file.name, linhas.length, tamanho);

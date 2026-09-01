@@ -9,14 +9,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        /* Estilos adicionais para os modais de filtro */
+        /* Estilos ajustados para o modal de filtro */
         .modal-filtro-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(30, 58, 138, 0.4); backdrop-filter: blur(6px);
             z-index: 9998; display: none; align-items: center; justify-content: center;
         }
         .modal-filtro-box {
-            background: #fff; border-radius: 24px; padding: 30px; max-width: 500px;
+            background: #fff; border-radius: 24px; padding: 30px; max-width: 600px;
             width: 95%; max-height: 80vh; display: flex; flex-direction: column;
             box-shadow: 0 20px 60px rgba(31, 38, 135, 0.3); border: 1px solid rgba(59,130,246,0.2);
         }
@@ -32,11 +32,30 @@
             max-height: 300px; overflow-y: auto; flex: 1; margin-bottom: 15px;
             border: 1px solid #e0f2fe; border-radius: 8px; padding: 10px;
         }
+        /* Ajuste principal: Checkbox grande à esquerda, texto à esquerda, sem quebras estranhas */
         .modal-filtro-lista label {
-            display: flex; align-items: center; gap: 10px; padding: 8px;
-            border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 1rem; color: #1e3a8a;
+            display: flex;
+            align-items: flex-start; /* Alinha no topo para texto longo não esticar */
+            gap: 12px;
+            padding: 12px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #1e3a8a;
+            line-height: 1.4;
+            word-break: normal;
+            text-align: left;
         }
         .modal-filtro-lista label:hover { background: #e0f2fe; }
+        /* Caixa de seleção maior e fixa no topo */
+        .modal-filtro-lista input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            margin-top: 2px; /* Pequeno ajuste para alinhar com a primeira linha do texto */
+            flex-shrink: 0;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
         .modal-filtro-botoes {
             display: flex; justify-content: flex-end; gap: 10px; margin-top: auto;
         }
@@ -45,7 +64,6 @@
         .btn-azul:hover { background: #2563eb; }
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
         .btn-cinza:hover { background: #cbd5e1; }
-        .btn-vermelho { background: #ef4444; color: white; }
     </style>
 </head>
 <body>
@@ -95,7 +113,6 @@
                 </div>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
-                <!-- Botões para abrir modais de filtro -->
                 <button onclick="abrirModalFiltro('fornecedor')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-truck"></i> Fornecedores</button>
                 <button onclick="abrirModalFiltro('codprod')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-barcode"></i> Código Produto</button>
                 <button onclick="abrirModalFiltro('descricao')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-box"></i> Descrição</button>
@@ -192,8 +209,8 @@
         let todosDados = [];
         let dadosFiltrados = [];
         let dadosBanco = [];
-        let filtrosSelecionados = {}; // Guarda os valores selecionados de cada coluna
-        let filtroAtual = null; // Coluna atual do modal
+        let filtrosSelecionados = {};
+        let filtroAtual = null;
 
         // ========== FUNÇÕES DE CARREGAMENTO ==========
         function mostrarCarregamento(texto = 'Carregando...') {
@@ -238,7 +255,6 @@
             filtroAtual = coluna;
             document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
             document.getElementById('modal-filtro-busca').value = '';
-            // Popula a lista com as opções
             const valores = [...new Set(dadosBanco.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
             const lista = document.getElementById('modal-filtro-lista');
             lista.innerHTML = '';
@@ -276,9 +292,7 @@
             const lista = document.getElementById('modal-filtro-lista');
             const checkboxes = lista.querySelectorAll('input[type="checkbox"]:checked');
             const valores = Array.from(checkboxes).map(cb => cb.value);
-            if (filtroAtual) {
-                filtrosSelecionados[filtroAtual] = valores;
-            }
+            if (filtroAtual) filtrosSelecionados[filtroAtual] = valores;
         }
 
         function selecionarTodosModal() {
@@ -299,7 +313,6 @@
         async function executarFiltros() {
             mostrarCarregamento('Aplicando filtros...');
             await new Promise(r => setTimeout(r, 50));
-
             const dataInicio = document.getElementById('filtro_data_inicio').value;
             const dataFim = document.getElementById('filtro_data_fim').value;
 
@@ -309,9 +322,7 @@
                 for (const filtro of FILTROS_DROPDOWN) {
                     const coluna = filtro.coluna;
                     const selecionados = filtrosSelecionados[coluna] || [];
-                    if (selecionados.length > 0 && !selecionados.includes(item[coluna])) {
-                        return false;
-                    }
+                    if (selecionados.length > 0 && !selecionados.includes(item[coluna])) return false;
                 }
                 return true;
             });
@@ -325,7 +336,6 @@
             document.getElementById('filtro_data_inicio').value = '';
             document.getElementById('filtro_data_fim').value = '';
             filtrosSelecionados = {};
-            // Fecha o modal se estiver aberto
             fecharModalFiltro();
             dadosFiltrados = todosDados;
             renderizarTabela(dadosFiltrados);

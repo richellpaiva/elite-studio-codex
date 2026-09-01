@@ -57,8 +57,6 @@
                 <div><label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Inicial</label><input type="date" id="filtro_data_inicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;"></div>
                 <div><label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Final</label><input type="date" id="filtro_data_fim" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;"></div>
             </div>
-            
-            <!-- FILTROS REORGANIZADOS (DESCRIÇÃO MAIOR, PLACAS NORMAL) -->
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
                 <button onclick="abrirModalFiltro('fornecedor')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-truck"></i> Fornecedores</button>
                 <button onclick="abrirModalFiltro('codprod')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-barcode"></i> Código Produto</button>
@@ -70,7 +68,6 @@
                 <button onclick="abrirModalFiltro('rota')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-route"></i> Rotas</button>
                 <button onclick="abrirModalFiltro('placa')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-car"></i> Placas</button>
             </div>
-
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
                 <button onclick="limparFiltros()" class="btn-acao btn-cinza"><i class="fas fa-eraser"></i> Limpar Filtros</button>
                 <button onclick="executarFiltros()" class="btn-acao btn-azul"><i class="fas fa-play"></i> Executar Filtros</button>
@@ -182,7 +179,7 @@
         let filtroAtual = null;
         let sortState = { col: null, asc: true };
 
-        // Funções de carregamento (overlay)
+        // ================== FUNÇÕES DE CARREGAMENTO ==================
         function mostrarCarregamento(texto = 'Carregando...') {
             document.getElementById('texto-carregamento').textContent = texto;
             document.getElementById('overlay-carregamento').style.display = 'flex';
@@ -200,7 +197,7 @@
             document.getElementById('overlay-carregamento').style.display = 'none';
         }
 
-        // Toggle filtros
+        // ================== CONTROLE DO PAINEL DE FILTROS ==================
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             const texto = document.getElementById('texto-filtro');
@@ -218,23 +215,55 @@
             }
         }
 
-        // Modal de filtro
+        // ================== MODAL DE FILTRO (CORRIGIDO COM PAGINAÇÃO) ==================
         async function abrirModalFiltro(coluna) {
             const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
             if (!filtro) return;
             filtroAtual = coluna;
             document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
             document.getElementById('modal-filtro-busca').value = '';
+
             mostrarCarregamento('Carregando opções...');
             const db = window.supabaseClient;
             if (!db) { ocultarCarregamento(); return; }
-            const { data, error } = await db.from('devolucoes').select(coluna).eq('empresa_id', localStorage.getItem('empresaId')).not(coluna, 'is', null);
-            if (error) { console.error(error); ocultarCarregamento(); return; }
-            const valores = [...new Set(data.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
+            const empresaId = localStorage.getItem('empresaId');
+            
+            // Busca TODOS os valores em paginação (1000 por vez)
+            let todosValores = [];
+            let from = 0;
+            const pageSize = 1000;
+
+            while (true) {
+                const { data, error } = await db
+                    .from('devolucoes')
+                    .select(coluna)
+                    .eq('empresa_id', empresaId)
+                    .not(coluna, 'is', null)
+                    .range(from, from + pageSize - 1);
+                
+                if (error) {
+                    console.error('Erro ao buscar valores:', error);
+                    break;
+                }
+                
+                todosValores = todosValores.concat(data.map(item => item[coluna]));
+                
+                if (data.length < pageSize) {
+                    break;
+                }
+                from += pageSize;
+            }
+
+            // Filtra valores únicos e não vazios, e ordena
+            const valores = [...new Set(todosValores.filter(v => v && v !== ''))].sort((a, b) => a.localeCompare(b));
+            
             ocultarCarregamento();
+
+            // Popula a lista no modal
             const lista = document.getElementById('modal-filtro-lista');
             lista.innerHTML = '';
             const selecionados = filtrosSelecionados[coluna] || [];
+            
             valores.forEach(val => {
                 const label = document.createElement('label');
                 const cb = document.createElement('input');
@@ -246,6 +275,7 @@
                 label.appendChild(document.createTextNode(' ' + val));
                 lista.appendChild(label);
             });
+            
             document.getElementById('modal-filtro-overlay').style.display = 'flex';
         }
 
@@ -285,7 +315,7 @@
             atualizarSelecaoModal();
         }
 
-        // Executar filtros
+        // ================== EXECUTAR FILTROS ==================
         async function executarFiltros() {
             mostrarCarregamento('Aplicando filtros...');
             await new Promise(r => setTimeout(r, 50));
@@ -326,7 +356,7 @@
             carregarDevolucoes();
         }
 
-        // Paginação
+        // ================== PAGINAÇÃO ==================
         function mudarPagina(delta) {
             const novaPagina = paginaAtual + delta;
             if (novaPagina < 1) return;
@@ -366,7 +396,7 @@
             document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
         }
 
-        // Formatação
+        // ================== FORMATAÇÃO ==================
         function formatarData(valor) {
             if (!valor) return '';
             if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
@@ -408,7 +438,7 @@
             }
         }
 
-        // Ordenação
+        // ================== ORDENAÇÃO ==================
         function ordenarPor(colKey) {
             if (sortState.col === colKey) {
                 sortState.asc = !sortState.asc;
@@ -445,7 +475,7 @@
             renderizarTabela(todosDados);
         }
 
-        // Renderizar tabela
+        // ================== RENDERIZAR TABELA ==================
         function renderizarTabela(dados) {
             const thead = document.getElementById('thead-tabela');
             const tbody = document.getElementById('tabela-devolucoes');
@@ -469,7 +499,7 @@
             });
         }
 
-        // Exportar Excel
+        // ================== EXPORTAR EXCEL ==================
         function exportarExcel() {
             if (todosDados.length === 0) { alert('Nenhum dado para exportar.'); return; }
             const ws_data = [COLUNAS.map(col => col.label)];
@@ -482,7 +512,7 @@
             XLSX.writeFile(wb, 'devolucoes.xlsx');
         }
 
-        // Importação
+        // ================== IMPORTAÇÃO ==================
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
@@ -573,7 +603,7 @@
             else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
         }
 
-        // Carregar dados
+        // ================== CARREGAR DADOS ==================
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;

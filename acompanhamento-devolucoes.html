@@ -27,7 +27,6 @@
         .btn-roxo { background: #8b5cf6; color: white; }
         .paginacao { display: flex; align-items: center; gap: 15px; margin-top: 15px; justify-content: center; }
         
-        /* Tabela estilo Windows Explorer */
         .explorer-table { width: 100%; border-collapse: collapse; }
         .explorer-table th { text-align: left; padding: 10px; background: #f1f5f9; color: #334155; font-weight: 600; border-bottom: 1px solid #cbd5e1; }
         .explorer-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
@@ -100,7 +99,6 @@
         </div>
     </div>
 
-    <!-- Modal de visualização de bancos importados -->
     <div id="modal-bancos" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30,58,138,0.5); backdrop-filter: blur(6px); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: #fff; border-radius: 16px; padding: 20px; width: 90%; max-width: 900px; max-height: 80vh; display: flex; flex-direction: column;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -155,8 +153,6 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
-        // ... (todo o código do seu arquivo anterior, incluindo as funções de importação, filtros, etc.)
-        // Para garantir, vou incluir as principais funções novamente
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
             { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
@@ -544,6 +540,13 @@
             document.getElementById('modal-bancos').style.display = 'none';
         }
 
+        function formatarDataHora(valor) {
+            if (!valor) return '—';
+            const data = new Date(valor);
+            if (isNaN(data)) return valor;
+            return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()} ${String(data.getHours()).padStart(2, '0')}:${String(data.getMinutes()).padStart(2, '0')}`;
+        }
+
         async function carregarBancosImportados() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -566,8 +569,8 @@
 
             tbody.innerHTML = '';
             data.forEach(item => {
-                const dataMod = item.data_criacao ? new Date(item.data_criacao).toLocaleDateString('pt-BR') : '—';
-                const dataImp = item.data_importacao ? new Date(item.data_importacao).toLocaleString('pt-BR') : '—';
+                const dataMod = formatarDataHora(item.data_criacao);
+                const dataImp = formatarDataHora(item.data_importacao);
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><i class="fas fa-file-excel explorer-icon"></i>${item.nome_arquivo || '—'}</td>
@@ -672,22 +675,47 @@
             return todasLinhas;
         }
 
-        async function registrarHistorico(nomeArquivo, linhas, tamanho) {
+        // ========== CORREÇÃO: UPSERT NO HISTÓRICO ==========
+        async function registrarHistorico(nomeArquivo, dataModificacao, linhas, tamanho) {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
-            const dataCriacao = new Date().toISOString().split('T')[0];
-            const { error } = await db.from('historico_importacoes').insert({
-                empresa_id: empresaId,
-                nome_arquivo: nomeArquivo,
-                data_criacao: dataCriacao,
-                quantidade_linhas: linhas,
-                tamanho_arquivo: tamanho,
-                categoria: 'devolucoes'
-            });
-            if (error) console.error('Erro ao salvar histórico:', error);
+
+            // 1. Verifica se já existe um arquivo com o mesmo nome e data de modificação
+            const { data: existente, error: erroBusca } = await db.from('historico_importacoes')
+                .select('id')
+                .eq('empresa_id', empresaId)
+                .eq('nome_arquivo', nomeArquivo)
+                .eq('data_criacao', dataModificacao)
+                .eq('categoria', 'devolucoes')
+                .maybeSingle();
+
+            if (erroBusca) {
+                console.error('Erro ao verificar existência no histórico:', erroBusca);
+                return;
+            }
+
+            if (existente) {
+                // 2. Se já existe, ATUALIZA a data de importação e tamanho
+                const { error: erroUpdate } = await db.from('historico_importacoes')
+                    .update({ data_importacao: new Date().toISOString(), tamanho_arquivo: tamanho })
+                    .eq('id', existente.id);
+                if (erroUpdate) console.error('Erro ao atualizar histórico:', erroUpdate);
+            } else {
+                // 3. Se não existe, INSERE
+                const { error: erroInsert } = await db.from('historico_importacoes').insert({
+                    empresa_id: empresaId,
+                    nome_arquivo: nomeArquivo,
+                    data_criacao: dataModificacao,
+                    quantidade_linhas: linhas,
+                    tamanho_arquivo: tamanho,
+                    categoria: 'devolucoes'
+                });
+                if (erroInsert) console.error('Erro ao inserir histórico:', erroInsert);
+            }
         }
 
+        // A função processarArquivos foi modificada para passar a data de modificação correta
         async function processarArquivos() {
             const db = window.supabaseClient;
             if (!db) { alert('Banco não conectado.'); return; }
@@ -704,9 +732,11 @@
             }
             ocultarCarregamento();
 
+            // Registrar histórico de cada arquivo (com data de modificação real)
             for (const file of listaArquivos) {
                 const tamanho = (file.size / 1024).toFixed(2) + ' KB';
-                await registrarHistorico(file.name, linhas.length, tamanho);
+                const dataMod = new Date(file.lastModified).toISOString(); // Data e hora reais do arquivo
+                await registrarHistorico(file.name, dataMod, linhas.length, tamanho);
             }
 
             document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados! Limpando duplicados...`;

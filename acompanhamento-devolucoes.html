@@ -629,20 +629,19 @@
             ocultarCarregamento();
             document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados! Limpando duplicados...`;
             
-            // Chama a função SQL otimizada
             await limparDuplicadosSQL();
             
             listaArquivos = [];
             await carregarDevolucoes();
         }
 
-        // FUNÇÃO QUE USA A RPC SQL OTIMIZADA
+        // FUNÇÃO QUE USA A RPC SQL (corrigida para retornar valores reais)
         async function limparDuplicadosSQL() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
             
-            mostrarCarregamento('Removendo duplicados de forma otimizada...');
+            mostrarCarregamento('Verificando e removendo duplicados...');
             try {
                 const { data, error } = await db.rpc('limpar_duplicados', { p_empresa_id: empresaId });
                 if (error) throw error;
@@ -652,12 +651,12 @@
                     const totalRemovidos = data[0].total_removidos;
                     
                     if (totalEncontrados === 0) {
-                        document.getElementById('status-importacao').textContent = '✅ 0 duplicados encontrados. Banco íntegro!';
+                        document.getElementById('status-importacao').textContent = '✅ Nenhum duplicado encontrado. Banco de dados revisado e íntegro!';
                     } else {
-                        document.getElementById('status-importacao').textContent = `✅ ${totalRemovidos} duplicados removidos (${totalEncontrados} encontrados). Banco íntegro!`;
+                        document.getElementById('status-importacao').textContent = `✅ ${totalRemovidos} duplicados identificados e removidos. Banco de dados revisado e íntegro!`;
                     }
                 } else {
-                    document.getElementById('status-importacao').textContent = '✅ Nenhum duplicado encontrado. Banco íntegro!';
+                    document.getElementById('status-importacao').textContent = '✅ Nenhum duplicado encontrado. Banco de dados revisado e íntegro!';
                 }
             } catch (e) {
                 console.error('Erro ao chamar limpar_duplicados:', e);

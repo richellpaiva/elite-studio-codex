@@ -1,5 +1,5 @@
 // ==============================================
-// 1. CONFIGURAÇÃO DO SUPABASE (NOVO PROJETO SÃO PAULO)
+// 1. CONFIGURAÇÃO DO SUPABASE (NOVO PROJETO - SÃO PAULO)
 // ==============================================
 const SUPABASE_URL = 'https://wkugyzxnbcvxetsawmaz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IQ3w71GgWpu18YA4mZWL3Q_3tJ59ATO';
@@ -319,4 +319,73 @@ function toggleFilterModal(colIndex, event) {
         else delete currentFilters[modalColumnIndex];
         closeFilterModal(); applyFiltersAndSort();
     };
-    action
+    actionArea.appendChild(btnApply); modal.appendChild(actionArea);
+
+    overlayEl.appendChild(modal); document.body.appendChild(overlayEl);
+}
+
+function changeModalSort(direction) {
+    const overlay = document.getElementById('filterOverlay');
+    if (overlay) {
+        const scrollArea = document.getElementById('filterScrollArea');
+        if (scrollArea) {
+            const col = COLUMNS[modalColumnIndex];
+            const uniqueValues = [...new Set(currentParsedData.map(row => formatCellValue(row[col.key], col.tipo)))]
+                .filter(v => v !== '' && v !== null && v !== 'undefined');
+            let sortedValues = [...uniqueValues];
+            if (direction === 'asc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nA - nB; return String(a).localeCompare(String(b)); });
+            if (direction === 'desc') sortedValues.sort((a,b) => { let nA = parseInt(String(a).replace(/[^\d]/g,''),10), nB = parseInt(String(b).replace(/[^\d]/g,''),10); if (!isNaN(nA) && !isNaN(nB)) return nB - nA; return String(b).localeCompare(String(a)); });
+            const selectedValues = currentFilters[modalColumnIndex] || [];
+            scrollArea.innerHTML = '';
+            sortedValues.forEach(val => {
+                const labelEl = document.createElement('label');
+                labelEl.style.cssText = `display: flex; align-items: center; gap: 12px; color: #1e3a8a; font-size: 0.95rem; cursor: pointer; padding: 8px 15px; background: #ffffff;`;
+                labelEl.onmouseenter = () => labelEl.style.background = '#e0f2fe';
+                labelEl.onmouseleave = () => labelEl.style.background = '#ffffff';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox'; cb.value = val; cb.checked = selectedValues.includes(val);
+                cb.style.cssText = 'accent-color: #3b82f6; cursor: pointer; transform: scale(1.1);';
+                labelEl.appendChild(cb); labelEl.appendChild(document.createTextNode(val));
+                scrollArea.appendChild(labelEl);
+            });
+        }
+    }
+}
+
+function closeFilterModal() {
+    const overlay = document.getElementById('filterOverlay');
+    if (overlay) { overlay.remove(); modalColumnIndex = null; modalSortDir = null; }
+}
+
+function showLoadingModal() {
+    const overlay = document.getElementById('loadingOverlay');
+    const ring = document.getElementById('donutRing');
+    if (overlay) { overlay.style.display = 'flex'; if (ring) ring.style.setProperty('--progress', '0%'); document.getElementById('progressText').textContent = '0%'; }
+}
+function updateLoadingProgress(percent) {
+    const ring = document.getElementById('donutRing');
+    const text = document.getElementById('progressText');
+    if (ring) ring.style.setProperty('--progress', percent + '%');
+    if (text) text.textContent = percent + '%';
+}
+function hideLoadingModal() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+function confirmImport() {
+    if (currentParsedData.length > 0) {
+        if (!confirm("⚠️ Já existem dados. Deseja zerar e importar os novos?")) return;
+    }
+    const btn = document.getElementById('importBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> Importado com sucesso!';
+    btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+    btn.disabled = true;
+    setTimeout(() => {
+        btn.innerHTML = originalText; btn.style.background = ''; btn.disabled = false;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('importBtn').style.display = 'none';
+        currentParsedData = []; currentDisplayData = []; renderTable();
+    }, 3000);
+}

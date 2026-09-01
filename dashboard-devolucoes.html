@@ -16,19 +16,18 @@
         .btn-azul { background: #3b82f6; color: white; }
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
         .btn-roxo { background: #8b5cf6; color: white; }
-        .btn-verde { background: #10b981; color: white; }
         
         /* Painel de filtros retrátil */
         .filtros-painel { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; display: none; }
         .filtros-painel.ativo { display: block; }
         .filtros-linha { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
         .filtros-linha label { display: block; font-weight: 600; margin-bottom: 5px; color: #334155; }
-        .filtros-linha input, .filtros-linha select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        .filtros-linha input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
         .botoes-meses { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
         .month-btn { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         .month-btn.active { background: #3b82f6; color: white; }
         
-        /* Modais de filtro (fornecedores, principal) */
+        /* Modais */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30,58,138,0.4); backdrop-filter: blur(6px); z-index: 9998; display: none; align-items: center; justify-content: center; }
         .modal-overlay.ativo { display: flex; }
         .modal-box { background: #fff; border-radius: 24px; padding: 30px; max-width: 600px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(31,38,135,0.3); border: 1px solid rgba(59,130,246,0.2); }
@@ -41,9 +40,7 @@
         .modal-lista input[type="checkbox"] { width: 24px; height: 24px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: #3b82f6; }
         .modal-botoes { display: flex; justify-content: flex-end; gap: 10px; }
         .modal-botoes .btn { border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; font-weight: 600; }
-        .btn-azul { background: #3b82f6; color: white; }
-        .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
-
+        
         .grafico-tabela { display: flex; gap: 30px; flex-wrap: wrap; }
         .grafico-box, .tabela-box { flex: 1; min-width: 400px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .tabela-box table { width: 100%; border-collapse: collapse; }
@@ -108,7 +105,6 @@
         </div>
     </div>
 
-    <!-- Modais de seleção -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
@@ -146,7 +142,6 @@
             const db = window.supabaseClient;
             if (!db) return;
 
-            // Busca valores distintos
             const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
             if (error) {
                 console.error(error);
@@ -168,7 +163,6 @@
 
         function fecharModalFiltro() {
             document.getElementById('modal-overlay').classList.remove('ativo');
-            // Salva os valores selecionados
             const checkboxes = document.querySelectorAll('#modal-lista input[type="checkbox"]:checked');
             const valores = Array.from(checkboxes).map(cb => cb.value);
             if (colunaAtual) selecionados[colunaAtual] = valores;
@@ -182,7 +176,7 @@
             document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        // Carregar meses disponíveis
+        // Carregar meses
         async function carregarMeses() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -194,7 +188,6 @@
             const meses = new Set();
             
             data.forEach(val => {
-                // Se for número serial do Excel, converte para data
                 if (!isNaN(val) && Number(val) > 20000 && Number(val) < 60000) {
                     const date = new Date((Number(val) - 25569) * 86400 * 1000);
                     meses.add(String(date.getMonth() + 1).padStart(2, '0'));
@@ -222,7 +215,7 @@
             });
         }
 
-        // Carregar dados do dashboard
+        // Carregar dashboard
         async function carregarDashboard() {
             const db = window.supabaseClient;
             if (!db) return;

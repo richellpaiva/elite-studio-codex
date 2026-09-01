@@ -10,51 +10,33 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #f0f9ff; margin: 0; padding: 0; }
-        
         .dashboard-container { width: 100%; min-height: 100vh; padding: 20px; box-sizing: border-box; }
-        
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; background: white; padding: 15px 20px;
-            border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
         .btn-azul { background: #3b82f6; color: white; }
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
-        
+        .btn-roxo { background: #8b5cf6; color: white; }
         .filtro-toggle { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        
-        .painel-filtros {
-            background: white; border-radius: 12px; padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; display: none;
-        }
+        .painel-filtros { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; display: none; }
         .painel-filtros.ativo { display: block; }
-        
         .linha-filtros { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 15px; align-items: flex-end; }
         .campo-filtro label { display: block; font-weight: 600; margin-bottom: 5px; color: #334155; font-size: 0.9rem; }
         .campo-filtro input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
-        
         .botoes-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
         .chip { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; user-select: none; transition: 0.2s; }
         .chip.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-        
         .acoes-chips { margin-top: 5px; }
         .acoes-chips .btn { padding: 5px 10px; font-size: 0.85rem; margin-right: 5px; }
-        
         .graficos-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
         .grafico-box { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); min-height: 400px; position: relative; }
         .grafico-box h3 { margin-top: 0; color: #1e3a8a; }
-        
-        canvas { max-height: 350px; width: 100% !important; }
-        
+        canvas { max-height: 350px; }
         .tabela-box { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 0.95rem; }
         th { text-align: left; background: #f1f5f9; font-weight: 600; }
         td:first-child, th:first-child { text-align: left; }
         tr:last-child td { font-weight: bold; background: #f1f5f9; }
-        
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30,58,138,0.4); backdrop-filter: blur(6px); z-index: 9998; display: none; align-items: center; justify-content: center; }
         .modal-overlay.ativo { display: flex; }
         .modal-box { background: #fff; border-radius: 24px; padding: 30px; max-width: 600px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(31,38,135,0.3); border: 1px solid rgba(59,130,246,0.2); }
@@ -82,11 +64,11 @@
             <div class="linha-filtros">
                 <div class="campo-filtro">
                     <label>Data Inicial</label>
-                    <input type="date" id="filtro_data_ini">
+                    <input type="date" id="filtro_data_ini" onchange="carregarDashboard()">
                 </div>
                 <div class="campo-filtro">
                     <label>Data Final</label>
-                    <input type="date" id="filtro_data_fim">
+                    <input type="date" id="filtro_data_fim" onchange="carregarDashboard()">
                 </div>
                 <div class="campo-filtro">
                     <label>Fornecedores</label>
@@ -159,7 +141,27 @@
         let mesesSelecionados = [];
         let anosSelecionados = [];
 
-        // Função para converter string monetária BR para número (sem multiplicar por 100)
+        // Função para converter qualquer formato de data para YYYY-MM-DD
+        function converterData(valor) {
+            if (!valor) return '';
+            // Se for número serial do Excel (ex: 46062)
+            if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
+                const data = new Date((Number(valor) - 25569) * 86400 * 1000);
+                return data.toISOString().split('T')[0];
+            }
+            // Se for string
+            let str = String(valor).trim();
+            // Se já for YYYY-MM-DD
+            if (str.includes('-') && str.length >= 10) return str.substring(0, 10);
+            // Se for DD/MM/YYYY
+            if (str.includes('/')) {
+                const partes = str.split('/');
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+            return str;
+        }
+
+        // Converter valor monetário
         function converterValor(valor) {
             if (typeof valor === 'number') return valor;
             let str = String(valor).trim().replace(/R\$/g, '').replace(/\s/g, '');
@@ -179,26 +181,11 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // Função para extrair ano e mês de um valor (ISO ou serial Excel)
-        function extrairAnoMes(valor) {
-            if (typeof valor === 'number' || (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000)) {
-                const date = new Date((Number(valor) - 25569) * 86400 * 1000);
-                return { ano: String(date.getFullYear()), mes: String(date.getMonth() + 1).padStart(2, '0') };
-            }
-            if (typeof valor === 'string' && valor.includes('-')) {
-                const partes = valor.split('-');
-                return { ano: partes[0], mes: partes[1] };
-            }
-            return { ano: '', mes: '' };
-        }
-
-        // Toggle Filtros
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             painel.classList.toggle('ativo');
         }
 
-        // Abrir modal de seleção
         async function abrirModalFiltro(coluna) {
             colunaAtual = coluna;
             document.getElementById('modal-titulo').textContent = coluna === 'fornecedor' ? 'Selecionar Fornecedores' : 'Selecionar Fornecedor Principal';
@@ -243,7 +230,6 @@
             document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        // Carregar meses e anos dinâmicos
         async function carregarOpcoes() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -256,12 +242,14 @@
             const anos = new Set();
 
             (data || []).forEach(val => {
-                const { ano, mes } = extrairAnoMes(val);
-                if (mes) meses.add(mes);
-                if (ano) anos.add(ano);
+                const dataConvertida = converterData(val);
+                if (dataConvertida && dataConvertida.includes('-')) {
+                    const partes = dataConvertida.split('-');
+                    meses.add(partes[1]);
+                    anos.add(partes[0]);
+                }
             });
 
-            // Renderizar meses
             const containerMeses = document.getElementById('botoes-meses');
             containerMeses.innerHTML = '';
             [...meses].sort().forEach(mesNum => {
@@ -278,7 +266,6 @@
                 containerMeses.appendChild(chip);
             });
 
-            // Renderizar anos
             const containerAnos = document.getElementById('botoes-anos');
             containerAnos.innerHTML = '';
             [...anos].sort().forEach(ano => {
@@ -333,7 +320,6 @@
             carregarDashboard();
         }
 
-        // Carregar dashboard com gráficos e tabela pivot
         async function carregarDashboard() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -356,13 +342,12 @@
 
             if (error) {
                 console.error('Erro ao carregar dados:', error);
-                alert('Erro ao carregar dados: ' + error.message + ' - Verifique se a função get_resumo_mensal foi criada no Supabase!');
+                alert('Erro ao carregar dados: ' + error.message);
                 return;
             }
 
             if (!data || data.length === 0) {
                 alert('Nenhum dado encontrado para os filtros selecionados.');
-                document.getElementById('tabela-resumo').innerHTML = '<tr><td colspan="5">Nenhum dado encontrado</td></tr>';
                 return;
             }
 
@@ -447,9 +432,6 @@
             let totalGeral = 0;
             arrayPrincipal.forEach(([principal, valorTotal]) => {
                 totalGeral += valorTotal;
-            });
-
-            arrayPrincipal.forEach(([principal, valorTotal]) => {
                 const percentual = totalGeral > 0 ? (valorTotal / totalGeral) * 100 : 0;
                 const linhaMes = mesesOrdenados.map(m => {
                     const v = dadosPorMesPorPrincipal[principal]?.[m] || 0;
@@ -467,7 +449,6 @@
             containerTabela.innerHTML += '</tbody>';
         }
 
-        // Inicialização
         document.addEventListener('DOMContentLoaded', async () => {
             const wait = setInterval(async () => {
                 if (window.supabaseClient) {

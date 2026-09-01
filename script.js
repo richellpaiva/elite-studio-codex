@@ -1,13 +1,16 @@
 // ==============================================
-// 1. CONFIGURAÇÃO DO SUPABASE
+// 1. CONFIGURAÇÃO DO SUPABASE (USANDO SERVICE_ROLE - IGUAL À RIFA)
 // ==============================================
+// COLE AQUI A URL DO SEU PROJETO ATUAL (NÃO O DA RIFA)
 const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTQ3NjEsImV4cCI6MjEwMzM3MDc2MX0.WyqGW_W-Xn83la22wecKT6HtlY38fV000uX6Ar6wtwM';
 
-// Cria o cliente global para usar em todas as páginas
+// COLE AQUI A CHAVE SERVICE_ROLE DO SEU PROJETO ATUAL (o token JWT com role: service_role)
+// Para pegar: Settings > API > service_role (clicar em "Reveal" e copiar)
+const SUPABASE_SERVICE_KEY = 'COLE_AQUI_SUA_CHAVE_SERVICE_ROLE';
+
 let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     window.supabaseClient = supabaseClient;
 } else {
     console.warn("Biblioteca Supabase não carregada.");

@@ -17,7 +17,6 @@
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
         .btn-roxo { background: #8b5cf6; color: white; }
         
-        /* Painel de filtros retrátil */
         .filtros-painel { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; display: none; }
         .filtros-painel.ativo { display: block; }
         .filtros-linha { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
@@ -27,7 +26,6 @@
         .month-btn { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         .month-btn.active { background: #3b82f6; color: white; }
         
-        /* Modais */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(30,58,138,0.4); backdrop-filter: blur(6px); z-index: 9998; display: none; align-items: center; justify-content: center; }
         .modal-overlay.ativo { display: flex; }
         .modal-box { background: #fff; border-radius: 24px; padding: 30px; max-width: 600px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(31,38,135,0.3); border: 1px solid rgba(59,130,246,0.2); }
@@ -124,15 +122,13 @@
     <script>
         let grafico = null;
         let colunaAtual = null;
-        let selecionados = {}; // Armazena seleções por coluna
+        let selecionados = {};
 
-        // Exibir/Ocultar painel de filtros
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             painel.classList.toggle('ativo');
         }
 
-        // Abrir modal de seleção
         async function abrirModalFiltro(coluna) {
             colunaAtual = coluna;
             document.getElementById('modal-titulo').textContent = coluna === 'fornecedor' ? 'Selecionar Fornecedores' : 'Selecionar Fornecedor Principal';
@@ -176,7 +172,6 @@
             document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        // Carregar meses
         async function carregarMeses() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -191,8 +186,13 @@
                 if (!isNaN(val) && Number(val) > 20000 && Number(val) < 60000) {
                     const date = new Date((Number(val) - 25569) * 86400 * 1000);
                     meses.add(String(date.getMonth() + 1).padStart(2, '0'));
+                } else if (typeof val === 'string' && val.includes('/')) {
+                    const parts = val.split('/');
+                    if (parts.length === 3) {
+                        meses.add(parts[1]); // formato dd/mm/yyyy
+                    }
                 } else if (typeof val === 'string' && val.includes('-')) {
-                    meses.add(val.split('-')[1]);
+                    meses.add(val.split('-')[1]); // formato yyyy-mm-dd
                 }
             });
             
@@ -207,6 +207,7 @@
                 btn.onclick = () => {
                     document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
+                    // Define explicitamente o início e fim do mês, e limpa os campos de data manual
                     document.getElementById('filtro_data_ini').value = '2026-' + mesNum + '-01';
                     document.getElementById('filtro_data_fim').value = '2026-' + mesNum + '-31';
                     carregarDashboard();
@@ -215,7 +216,6 @@
             });
         }
 
-        // Carregar dashboard
         async function carregarDashboard() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -240,9 +240,12 @@
             let totalGeral = 0;
             data.forEach(item => {
                 totalGeral += parseFloat(item.valor_total);
-                tbody.innerHTML += `<tr><td>${item.fornecedor}</td><td>R$ ${parseFloat(item.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>${parseFloat(item.percentual).toFixed(2)}%</td></tr>`;
+                // Formata sem multiplicar por 100, apenas com 2 casas decimais e separador de milhar
+                const valorFormatado = parseFloat(item.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                tbody.innerHTML += `<tr><td>${item.fornecedor}</td><td>R$ ${valorFormatado}</td><td>${parseFloat(item.percentual).toFixed(2)}%</td></tr>`;
             });
-            tbody.innerHTML += `<tr><td>Total Geral</td><td>R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>100%</td></tr>`;
+            const totalFormatado = totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            tbody.innerHTML += `<tr><td>Total Geral</td><td>R$ ${totalFormatado}</td><td>100%</td></tr>`;
 
             const ctx = document.getElementById('graficoBarras').getContext('2d');
             if (grafico) grafico.destroy();
@@ -260,12 +263,11 @@
                 },
                 options: {
                     indexAxis: 'y',
-                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
+                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } } }
                 }
             });
         }
 
-        // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             const wait = setInterval(() => {
                 if (window.supabaseClient) {

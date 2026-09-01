@@ -21,12 +21,8 @@
         .modal-filtro-botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: auto; }
         .btn-acao { padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; }
         .btn-azul { background: #3b82f6; color: white; }
-        .btn-azul:hover { background: #2563eb; }
         .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
-        .btn-cinza:hover { background: #cbd5e1; }
-        th.sortable { cursor: pointer; user-select: none; }
-        th.sortable:hover { background: #2563eb; }
-        .sort-icon { margin-left: 5px; font-size: 0.8rem; }
+        .paginacao { display: flex; align-items: center; gap: 15px; margin-top: 15px; justify-content: center; }
     </style>
 </head>
 <body>
@@ -35,7 +31,6 @@
     </script>
 
     <div id="sidebar-container"></div>
-
     <div class="main-content-empresa" style="padding: 40px; transition: margin-left 0.3s ease;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
             <h1 style="color: #1e3a8a;">Acompanhamento de Devoluções</h1>
@@ -43,7 +38,7 @@
                 <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-folder-open"></i> Selecionar Planilhas</button>
                 <button onclick="processarArquivos()" style="padding: 10px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fas fa-upload"></i> Importar Arquivos</button>
                 <button onclick="substituirTudo()" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fas fa-trash-alt"></i> Substituir Tudo</button>
-                <button onclick="exportarExcel()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fas fa-file-excel"></i> Baixar Excel</button>
+                <button onclick="exportarExcel()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fas fa-file-excel"></i> Baixar Excel (Página Atual)</button>
             </div>
         </div>
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
@@ -84,6 +79,12 @@
                     <tbody id="tabela-devolucoes"></tbody>
                 </table>
             </div>
+            <!-- Paginação -->
+            <div class="paginacao">
+                <button onclick="mudarPagina(-1)" class="btn-acao btn-cinza"><i class="fas fa-chevron-left"></i> Anterior</button>
+                <span id="info-pagina" style="color: #1e3a8a; font-weight: 600;">Página 1 de 1</span>
+                <button onclick="mudarPagina(1)" class="btn-acao btn-cinza">Próxima <i class="fas fa-chevron-right"></i></button>
+            </div>
         </div>
     </div>
 
@@ -117,6 +118,7 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
+        // Definição das colunas
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC' }, { key: 'fornecedor', label: 'FORNECEDOR' },
             { key: 'numped', label: 'NUMPED' }, { key: 'numnota', label: 'NUMNOTA' },
@@ -150,9 +152,11 @@
         ];
 
         let listaArquivos = [];
-        let todosDados = [];
-        let dadosFiltrados = [];
-        let dadosBanco = [];
+        let todosDados = []; // Armazena apenas a página atual
+        let todosFiltrados = []; // Armazena todos os dados filtrados (para paginação)
+        let paginaAtual = 1;
+        let totalRegistros = 0;
+        const POR_PAGINA = 200; // Carrega apenas 200 por vez para não travar
         let filtrosSelecionados = {};
         let filtroAtual = null;
         let sortState = { col: null, asc: true };
@@ -191,13 +195,24 @@
             }
         }
 
-        function abrirModalFiltro(coluna) {
+        // Carregar lista de valores únicos sob demanda (apenas quando abre o filtro)
+        async function abrirModalFiltro(coluna) {
             const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
             if (!filtro) return;
             filtroAtual = coluna;
             document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
             document.getElementById('modal-filtro-busca').value = '';
-            const valores = [...new Set(dadosBanco.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
+            mostrarCarregamento('Carregando opções...');
+            const db = window.supabaseClient;
+            if (!db) { ocultarCarregamento(); return; }
+            
+            // Busca os primeiros 1000 valores distintos da coluna (sem carregar a tabela inteira)
+            const { data, error } = await db.from('devolucoes').select(coluna).eq('empresa_id', localStorage.getItem('empresaId')).not(coluna, 'is', null);
+            if (error) { console.error(error); ocultarCarregamento(); return; }
+            
+            const valores = [...new Set(data.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
+            ocultarCarregamento();
+
             const lista = document.getElementById('modal-filtro-lista');
             lista.innerHTML = '';
             const selecionados = filtrosSelecionados[coluna] || [];
@@ -257,20 +272,35 @@
             const dataInicio = document.getElementById('filtro_data_inicio').value;
             const dataFim = document.getElementById('filtro_data_fim').value;
 
-            let filtrados = todosDados.filter(item => {
-                if (dataInicio && item.dtent < dataInicio) return false;
-                if (dataFim && item.dtent > dataFim) return false;
-                for (const filtro of FILTROS_DROPDOWN) {
-                    const coluna = filtro.coluna;
-                    const selecionados = filtrosSelecionados[coluna] || [];
-                    if (selecionados.length > 0 && !selecionados.includes(item[coluna])) return false;
-                }
-                return true;
-            });
+            // Busca dados filtrando no servidor (sem trazer tudo)
+            const db = window.supabaseClient;
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            
+            for (const filtro of FILTROS_DROPDOWN) {
+                const coluna = filtro.coluna;
+                const selecionados = filtrosSelecionados[coluna] || [];
+                if (selecionados.length > 0) query = query.in(coluna, selecionados);
+            }
 
-            dadosFiltrados = filtrados;
-            await renderizarTabela(dadosFiltrados);
+            // Busca primeiro total e página inicial
+            const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+            if (countError) { console.error(countError); ocultarCarregamento(); return; }
+            totalRegistros = count;
+            paginaAtual = 1;
+
+            // Busca dados da primeira página filtrada
+            const { data, error } = await query.range(0, POR_PAGINA - 1);
             ocultarCarregamento();
+            if (error) { console.error(error); return; }
+
+            todosFiltrados = data || [];
+            todosDados = data || [];
+            sortState = { col: null, asc: true };
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
         }
 
         function limparFiltros() {
@@ -278,9 +308,47 @@
             document.getElementById('filtro_data_fim').value = '';
             filtrosSelecionados = {};
             fecharModalFiltro();
-            dadosFiltrados = todosDados;
-            sortState = { col: null, asc: true };
-            renderizarTabela(dadosFiltrados);
+            // Recarrega dados sem filtro
+            carregarDevolucoes();
+        }
+
+        function mudarPagina(delta) {
+            const novaPagina = paginaAtual + delta;
+            if (novaPagina < 1) return;
+            carregarPagina(novaPagina);
+        }
+
+        async function carregarPagina(numero) {
+            paginaAtual = numero;
+            mostrarCarregamento('Carregando página...');
+            const db = window.supabaseClient;
+            const from = (paginaAtual - 1) * POR_PAGINA;
+            const to = from + POR_PAGINA - 1;
+
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            for (const filtro of FILTROS_DROPDOWN) {
+                const coluna = filtro.coluna;
+                const selecionados = filtrosSelecionados[coluna] || [];
+                if (selecionados.length > 0) query = query.in(coluna, selecionados);
+            }
+
+            const { data, error } = await query.range(from, to);
+            ocultarCarregamento();
+            if (error) { console.error(error); return; }
+
+            todosDados = data || [];
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        function atualizarInfoPagina() {
+            const totalPaginas = Math.ceil(totalRegistros / POR_PAGINA);
+            document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
         }
 
         // Ordenação
@@ -291,36 +359,29 @@
                 sortState.col = colKey;
                 sortState.asc = true;
             }
-            const sorted = [...dadosFiltrados].sort((a, b) => {
+            const sorted = [...todosDados].sort((a, b) => {
                 let valA = a[colKey];
                 let valB = b[colKey];
-                // Tenta converter para número
                 let numA = parseFloat(String(valA).replace(/\./g, '').replace(',', '.'));
                 let numB = parseFloat(String(valB).replace(/\./g, '').replace(',', '.'));
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return sortState.asc ? numA - numB : numB - numA;
-                }
-                // Tenta converter para data
+                if (!isNaN(numA) && !isNaN(numB)) return sortState.asc ? numA - numB : numB - numA;
                 let dateA = new Date(valA);
                 let dateB = new Date(valB);
-                if (!isNaN(dateA) && !isNaN(dateB)) {
-                    return sortState.asc ? dateA - dateB : dateB - dateA;
-                }
-                // Texto
+                if (!isNaN(dateA) && !isNaN(dateB)) return sortState.asc ? dateA - dateB : dateB - dateA;
                 let strA = String(valA || '').toLowerCase();
                 let strB = String(valB || '').toLowerCase();
                 if (strA < strB) return sortState.asc ? -1 : 1;
                 if (strA > strB) return sortState.asc ? 1 : -1;
                 return 0;
             });
-            dadosFiltrados = sorted;
-            renderizarTabela(dadosFiltrados);
+            todosDados = sorted;
+            renderizarTabela(todosDados);
         }
 
         function formatarData(valor) {
             if (!valor) return '';
-            if (valor.includes('-')) {
-                const [ano, mes, dia] = valor.split('-');
+            if (String(valor).includes('-')) {
+                const [ano, mes, dia] = String(valor).split('-');
                 return `${dia}/${mes}/${ano}`;
             }
             return valor;
@@ -350,17 +411,16 @@
             });
         }
 
-        // Exportar Excel
         function exportarExcel() {
-            if (dadosFiltrados.length === 0) { alert('Nenhum dado para exportar.'); return; }
+            if (todosDados.length === 0) { alert('Nenhum dado para exportar na página atual.'); return; }
             const ws_data = [COLUNAS.map(col => col.label)];
-            dadosFiltrados.forEach(item => {
+            todosDados.forEach(item => {
                 ws_data.push(COLUNAS.map(col => item[col.key] || ''));
             });
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Devoluções');
-            XLSX.writeFile(wb, 'devolucoes.xlsx');
+            XLSX.writeFile(wb, 'devolucoes_pagina.xlsx');
         }
 
         // Importação
@@ -454,28 +514,28 @@
             else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
         }
 
-        // Carregar todos os dados com paginação (Supabase retorna no máximo 1000 por vez)
+        // Carregar primeira página (otimizado - não carrega todos os 58 mil)
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
-            mostrarCarregamento('Carregando todos os dados...');
-            let todos = [];
-            let from = 0;
-            const pageSize = 1000;
-            while (true) {
-                const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).range(from, from + pageSize - 1).order('created_at', { ascending: false });
-                if (error) { console.error(error); ocultarCarregamento(); return; }
-                todos = todos.concat(data);
-                if (data.length < pageSize) break;
-                from += pageSize;
-            }
+            mostrarCarregamento('Carregando dados...');
+            
+            // Busca apenas o total e a primeira página
+            const { count, error: countError } = await db.from('devolucoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId);
+            if (countError) { console.error(countError); ocultarCarregamento(); return; }
+            totalRegistros = count || 0;
+            
+            const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).range(0, POR_PAGINA - 1);
             ocultarCarregamento();
-            todosDados = todos;
-            dadosBanco = [...todosDados];
-            dadosFiltrados = [...todosDados];
+            if (error) { console.error(error); return; }
+
+            todosDados = data || [];
+            todosFiltrados = [...todosDados];
+            paginaAtual = 1;
             sortState = { col: null, asc: true };
-            renderizarTabela(dadosFiltrados);
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
         }
 
         document.addEventListener('DOMContentLoaded', async () => {

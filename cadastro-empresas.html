@@ -233,8 +233,8 @@
                 tdAcoes.style.padding = '10px';
                 tdAcoes.style.textAlign = 'center';
                 tdAcoes.innerHTML = `
-                    <button onclick="editarRegistro(${item.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
-                    <button onclick="excluirRegistro(${item.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
+                    <button onclick="editarRegistro('${item.id}')" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
+                    <button onclick="excluirRegistro('${item.id}')" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
                 `;
                 tr.appendChild(tdAcoes);
 
@@ -250,10 +250,9 @@
         function abrirModal(item = null) {
             document.getElementById('modal').style.display = 'flex';
             document.getElementById('modal-titulo').textContent = item ? 'Editar Empresa' : 'Adicionar Empresa';
-            document.getElementById('edit-id').value = item ? item.id : '';
             document.getElementById('razao').value = item ? item.razao : '';
             document.getElementById('cnpj').value = item ? item.cnpj : '';
-            document.getElementById('data_abertura').value = item ? item.data_abertura || '' : '';
+            document.getElementById('data_abertura').value = item ? (item.data_abertura ? item.data_abertura.substring(0, 10) : '') : '';
             document.getElementById('endereco').value = item ? item.endereco || '' : '';
             document.getElementById('numero').value = item ? item.numero || '' : '';
             document.getElementById('complemento').value = item ? item.complemento || '' : '';
@@ -284,7 +283,10 @@
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
             if (!razao || !cnpj) { alert('Preencha Razão Social e CNPJ.'); return; }
-            const data_abertura = document.getElementById('data_abertura').value;
+            
+            // CORREÇÃO: Se data_abertura estiver vazia, envia null em vez de ""
+            const data_abertura = document.getElementById('data_abertura').value || null;
+            
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
             const complemento = document.getElementById('complemento').value.trim();

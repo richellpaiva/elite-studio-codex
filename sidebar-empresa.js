@@ -22,15 +22,15 @@ async function injetarSidebar() {
     }
 
     const logoHTML = logoUrl 
-        ? `<img src="${logoUrl}" alt="Logo" style="max-width: 120px; max-height: 80px; object-fit: contain; margin: 0 auto;">`
+        ? `<img src="${logoUrl}" alt="Logo" id="empresa-logo-img" style="max-width: 120px; max-height: 80px; object-fit: contain; margin: 0 auto; transition: all 0.3s ease;">`
         : `<div style="width: 60px; height: 60px; background: #e0f2fe; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 30px; margin: 0 auto;"><i class="fas fa-building"></i></div>`;
 
     container.innerHTML = `
-        <div id="sidebar" style="position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: width 0.3s ease;">
+        <div id="sidebar" style="position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: all 0.3s ease;">
             <div style="text-align: center; margin-bottom: 15px;">
                 ${logoHTML}
             </div>
-            <h2 style="color: #1e3a8a; text-align: center; font-size: 1.1rem; margin-bottom: 30px; word-wrap: break-word;">${nomeEmpresa}</h2>
+            <h2 id="empresa-nome-sidebar" style="color: #1e3a8a; text-align: center; font-size: 1.1rem; margin-bottom: 30px; word-wrap: break-word;">${nomeEmpresa}</h2>
             
             <!-- Botão recolher/expandir -->
             <div style="text-align: center; margin-bottom: 15px;">
@@ -39,14 +39,12 @@ async function injetarSidebar() {
                 </button>
             </div>
 
-            <!-- Menu (links para outras páginas) -->
+            <!-- Menu -->
             <nav style="display: flex; flex-direction: column; gap: 8px;">
                 <a href="acompanhamento-devolucoes.html" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #1e3a8a; text-decoration: none; padding: 12px; border-radius: 12px; transition: 0.3s; font-weight: 500;">
                     <i class="fas fa-undo-alt" style="color: #3b82f6; font-size: 1.2rem; min-width: 20px;"></i>
                     <span class="menu-text">Acompanhamento de Devoluções</span>
                 </a>
-                <!-- Adicione novos links aqui -->
-                <!-- <a href="outra-pagina.html" class="menu-link">...</a> -->
             </nav>
 
             <!-- Rodapé -->
@@ -61,11 +59,8 @@ async function injetarSidebar() {
                 </a>
             </div>
         </div>
-        
-        <!-- Botão hambúrguer quando recolhido (funcionalidade extra) -->
     `;
     
-    // Ajusta o margin-left do conteúdo principal baseado na sidebar
     const mainContent = document.querySelector('.main-content-empresa');
     if (mainContent) mainContent.style.marginLeft = '280px';
 
@@ -74,20 +69,60 @@ async function injetarSidebar() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.querySelector('.main-content-empresa');
         const texts = sidebar.querySelectorAll('.menu-text');
+        const logoImg = document.getElementById('empresa-logo-img');
+        const nomeEmpresa = document.getElementById('empresa-nome-sidebar');
+        
+        // Verifica se está recolhido (70px) ou expandido (280px)
         const collapsed = sidebar.style.width === '70px';
         
         if (!collapsed) {
+            // RECOLHER
             sidebar.style.width = '70px';
             sidebar.style.padding = '20px 10px';
             if (mainContent) mainContent.style.marginLeft = '70px';
+            
+            // Ocultar textos
             texts.forEach(el => el.style.display = 'none');
-            sidebar.querySelector('h2').style.display = 'none';
+            // Ocultar nome da empresa
+            nomeEmpresa.style.display = 'none';
+            
+            // Reduzir a logo para caber na barra
+            if (logoImg) {
+                logoImg.style.maxWidth = '40px';
+                logoImg.style.maxHeight = '40px';
+            } else {
+                // Se for o placeholder, reduzir também
+                const placeholder = sidebar.querySelector('div[style*="border-radius: 16px"]');
+                if (placeholder) {
+                    placeholder.style.width = '40px';
+                    placeholder.style.height = '40px';
+                    placeholder.style.fontSize = '18px';
+                }
+            }
         } else {
+            // EXPANDIR
             sidebar.style.width = '280px';
             sidebar.style.padding = '20px 15px';
             if (mainContent) mainContent.style.marginLeft = '280px';
+            
+            // Mostrar textos
             texts.forEach(el => el.style.display = 'inline');
-            sidebar.querySelector('h2').style.display = 'block';
+            // Mostrar nome da empresa
+            nomeEmpresa.style.display = 'block';
+            
+            // Restaurar a logo para o tamanho original
+            if (logoImg) {
+                logoImg.style.maxWidth = '120px';
+                logoImg.style.maxHeight = '80px';
+            } else {
+                // Restaurar placeholder
+                const placeholder = sidebar.querySelector('div[style*="border-radius: 16px"]');
+                if (placeholder) {
+                    placeholder.style.width = '60px';
+                    placeholder.style.height = '60px';
+                    placeholder.style.fontSize = '30px';
+                }
+            }
         }
     };
 }
@@ -103,7 +138,6 @@ window.logout = function() {
 
 // Inicializa quando o DOM estiver pronto e o Supabase carregar
 document.addEventListener('DOMContentLoaded', () => {
-    // Aguarda o supabaseClient ser criado (script.js já faz isso com retry)
     const waitForSupabase = setInterval(() => {
         if (window.supabaseClient) {
             clearInterval(waitForSupabase);

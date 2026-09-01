@@ -27,6 +27,9 @@ async function injetarSidebar() {
         ? `<img src="${logoUrl}" alt="Logo" id="empresa-logo-img" style="max-width: 120px; max-height: 80px; object-fit: contain; margin: 0 auto; transition: all 0.3s ease;">`
         : `<div style="width: 60px; height: 60px; background: #e0f2fe; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 30px; margin: 0 auto;"><i class="fas fa-building"></i></div>`;
 
+    // Verifica se o usuário tem empresa ou é admin
+    const urlVoltar = empresaId ? 'painel-empresa.html' : 'home.html';
+
     // Monta o HTML da sidebar
     container.innerHTML = `
         <div id="sidebar" style="position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: all 0.3s ease;">
@@ -53,9 +56,9 @@ async function injetarSidebar() {
 
             <!-- Rodapé fixo -->
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(59,130,246,0.2);">
-                <a href="home.html" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #64748b; text-decoration: none; padding: 10px;">
+                <a href="${urlVoltar}" class="menu-link" style="display: flex; align-items: center; gap: 10px; color: #64748b; text-decoration: none; padding: 10px;">
                     <i class="fas fa-arrow-left" style="min-width: 20px;"></i>
-                    <span class="menu-text">Voltar ao Painel Geral</span>
+                    <span class="menu-text">Voltar ao Painel</span>
                 </a>
                 <a href="#" onclick="logout()" style="display: flex; align-items: center; gap: 10px; color: #ef4444; text-decoration: none; padding: 10px;">
                     <i class="fas fa-sign-out-alt" style="min-width: 20px;"></i>
@@ -101,7 +104,6 @@ async function injetarSidebar() {
                 logoImg.style.maxWidth = '40px';
                 logoImg.style.maxHeight = '40px';
             } else {
-                // Se for o placeholder, reduzir também
                 const placeholder = sidebar.querySelector('div[style*="border-radius: 16px"]');
                 if (placeholder) {
                     placeholder.style.width = '40px';
@@ -125,7 +127,6 @@ async function injetarSidebar() {
                 logoImg.style.maxWidth = '120px';
                 logoImg.style.maxHeight = '80px';
             } else {
-                // Restaurar placeholder
                 const placeholder = sidebar.querySelector('div[style*="border-radius: 16px"]');
                 if (placeholder) {
                     placeholder.style.width = '60px';

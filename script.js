@@ -1,5 +1,5 @@
 // ==============================================
-// 1. CONFIGURAÇÃO DO SUPABASE (NOVO PROJETO - SÃO PAULO)
+// 1. CONFIGURAÇÃO DO SUPABASE (PROJETO SÃO PAULO)
 // ==============================================
 const SUPABASE_URL = 'https://wkugyzxnbcvxetsawmaz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IQ3w71GgWpu18YA4mZWL3Q_3tJ59ATO';
@@ -14,7 +14,7 @@ function initSupabase() {
         console.log("Supabase conectado com sucesso!");
     } else {
         console.warn("Biblioteca Supabase ainda não carregada. Tentando novamente...");
-        setTimeout(initSupabase, 200); // Tenta novamente em 200ms
+        setTimeout(initSupabase, 200);
     }
 }
 
@@ -22,7 +22,7 @@ function initSupabase() {
 document.addEventListener('DOMContentLoaded', initSupabase);
 
 // ==============================================
-// 2. AUTENTICAÇÃO (Agora com Supabase)
+// 2. AUTENTICAÇÃO (COM SUPABASE)
 // ==============================================
 
 function logout() {
@@ -33,7 +33,7 @@ function logout() {
     window.location.href = 'index.html';
 }
 
-// Função chamada ao submeter o formulário de login (definida no index.html)
+// Função chamada pelo index.html no submit do formulário
 async function handleLogin(loginInput, passInput) {
     // Garante que o cliente esteja pronto
     if (!supabaseClient) {
@@ -42,6 +42,11 @@ async function handleLogin(loginInput, passInput) {
             alert("Erro: Banco de dados não conectado. Verifique sua internet.");
             return;
         }
+    }
+
+    // Esconde mensagem de erro (se estiver visível)
+    if (typeof window.hideLoginError === 'function') {
+        window.hideLoginError();
     }
 
     // Busca o usuário no banco de dados
@@ -54,7 +59,10 @@ async function handleLogin(loginInput, passInput) {
 
     if (error) {
         console.error("Erro ao buscar usuário:", error);
-        alert("Usuário ou senha incorretos.");
+        // Se não encontrou, mostra erro de credenciais
+        if (typeof window.showLoginError === 'function') {
+            window.showLoginError();
+        }
         return;
     }
 
@@ -72,7 +80,9 @@ async function handleLogin(loginInput, passInput) {
             window.location.href = 'home.html';
         }
     } else {
-        alert("Usuário ou senha incorretos.");
+        if (typeof window.showLoginError === 'function') {
+            window.showLoginError();
+        }
     }
 }
 

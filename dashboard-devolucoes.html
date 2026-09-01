@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Devoluções</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f0f9ff; }
+        .container { max-width: 1400px; margin: 40px auto; padding: 20px; }
+        .filtros { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .filtros h2 { margin-top: 0; color: #1e3a8a; }
+        .linha-filtros { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-end; }
+        .linha-filtros label { display: block; font-weight: 600; margin-bottom: 5px; color: #334155; }
+        .linha-filtros input, .linha-filtros select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-azul { background: #3b82f6; color: white; }
+        .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
+        .month-btn { background: #e0f2fe; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .month-btn.active { background: #3b82f6; color: white; }
+        .grafico-tabela { display: flex; gap: 30px; flex-wrap: wrap; }
+        .grafico-box, .tabela-box { flex: 1; min-width: 400px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .tabela-box table { width: 100%; border-collapse: collapse; }
+        .tabela-box th { text-align: left; padding: 10px; background: #f1f5f9; }
+        .tabela-box td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+        .tabela-box tr:last-child td { font-weight: bold; background: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="color: #1e3a8a;">Dashboard de Devoluções</h1>
+            <a href="acompanhamento-devolucoes.html" class="btn btn-cinza"><i class="fas fa-arrow-left"></i> Voltar</a>
+        </div>
+
+        <div class="filtros">
+            <h2>Filtros</h2>
+            <div class="linha-filtros">
+                <div>
+                    <label>Data Inicial</label>
+                    <input type="date" id="filtro_data_ini">
+                </div>
+                <div>
+                    <label>Data Final</label>
+                    <input type="date" id="filtro_data_fim">
+                </div>
+                <button onclick="carregarDashboard()" class="btn btn-azul">Aplicar Filtros</button>
+            </div>
+            <div id="botoes-meses" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+        </div>
+
+        <div class="grafico-tabela">
+            <div class="grafico-box">
+                <h3>Valor Total por Fornecedor</h3>
+                <canvas id="graficoBarras" height="300"></canvas>
+            </div>
+            <div class="tabela-box">
+                <h3>Resumo</h3>
+                <table>
+                    <thead>
+                        <tr><th>Fornecedor</th><th>Valor</th><th>%</th></tr>
+                    </thead>
+                    <tbody id="tabela-resumo"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let grafico = null;
+
+        async function carregarMeses() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const { data } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
+            const meses = [...new Set(data.map(item => String(item).split('-')[1]))].sort();
+            const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const container = document.getElementById('botoes-meses');
+            container.innerHTML = '<strong>Mês:</strong> ';
+            meses.forEach(mesNum => {
+                const btn = document.createElement('button');
+                btn.className = 'month-btn';
+                btn.textContent = nomes[parseInt(mesNum) - 1] || mesNum;
+                btn.onclick = () => {
+                    document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('filtro_data_ini').value = '2026-' + mesNum + '-01';
+                    document.getElementById('filtro_data_fim').value = '2026-' + mesNum + '-31';
+                    carregarDashboard();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        async function carregarDashboard() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            const dataIni = document.getElementById('filtro_data_ini').value || null;
+            const dataFim = document.getElementById('filtro_data_fim').value || null;
+
+            const { data, error } = await db.rpc('get_resumo_devolucoes', {
+                p_empresa_id: empresaId, p_data_inicio: dataIni, p_data_fim: dataFim
+            });
+
+            if (error) { console.error(error); return; }
+
+            const tbody = document.getElementById('tabela-resumo');
+            tbody.innerHTML = '';
+            let totalGeral = 0;
+            data.forEach(item => {
+                totalGeral += parseFloat(item.valor_total);
+                tbody.innerHTML += `<tr><td>${item.fornecedor}</td><td>R$ ${parseFloat(item.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>${parseFloat(item.percentual).toFixed(2)}%</td></tr>`;
+            });
+            tbody.innerHTML += `<tr><td>Total Geral</td><td>R$ ${totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td><td>100%</td></tr>`;
+
+            const ctx = document.getElementById('graficoBarras').getContext('2d');
+            if (grafico) grafico.destroy();
+            grafico = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(item => item.fornecedor),
+                    datasets: [{
+                        label: 'Valor',
+                        data: data.map(item => parseFloat(item.valor_total)),
+                        backgroundColor: 'rgba(59,130,246,0.7)',
+                        borderColor: 'rgba(59,130,246,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const wait = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(wait);
+                    carregarMeses();
+                    carregarDashboard();
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

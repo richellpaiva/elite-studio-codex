@@ -22,7 +22,7 @@ function initSupabase() {
 document.addEventListener('DOMContentLoaded', initSupabase);
 
 // ==============================================
-// 2. AUTENTICAÇÃO (COM SUPABASE)
+// 2. AUTENTICAÇÃO (COM SUPABASE) - CORRIGIDO
 // ==============================================
 
 function logout() {
@@ -49,37 +49,39 @@ async function handleLogin(loginInput, passInput) {
         window.hideLoginError();
     }
 
-    // Busca o usuário no banco de dados
+    // Busca o usuário no banco de dados (SEM .single() para evitar erro 406)
     const { data, error } = await supabaseClient
         .from('usuarios')
         .select('*')
         .eq('login', loginInput)
-        .eq('senha', passInput)
-        .single();
+        .eq('senha', passInput);
 
     if (error) {
         console.error("Erro ao buscar usuário:", error);
-        // Se não encontrou, mostra erro de credenciais
         if (typeof window.showLoginError === 'function') {
             window.showLoginError();
         }
         return;
     }
 
-    if (data) {
+    // Se encontrou o usuário (array com pelo menos 1 item)
+    if (data && data.length > 0) {
+        const user = data[0];
+        
         // Usuário encontrado no banco
         localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userName', data.nome);
-        localStorage.setItem('userId', data.id);
-        localStorage.setItem('empresaId', data.empresa_id || '');
+        localStorage.setItem('userName', user.nome);
+        localStorage.setItem('userId', user.id);
+        localStorage.setItem('empresaId', user.empresa_id || '');
 
         // Redireciona para o painel correto
-        if (data.empresa_id) {
+        if (user.empresa_id) {
             window.location.href = 'painel-empresa.html';
         } else {
             window.location.href = 'home.html';
         }
     } else {
+        // Nenhum usuário encontrado com essas credenciais
         if (typeof window.showLoginError === 'function') {
             window.showLoginError();
         }

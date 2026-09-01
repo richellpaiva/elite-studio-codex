@@ -6,6 +6,7 @@
     <title>Cadastro de Empresas</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <script>
@@ -47,7 +48,7 @@
                 </table>
             </div>
 
-            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados armazenados no navegador (localStorage).</p>
+            <p style="color: #64748b; font-size: 0.8rem; margin-top: 10px; text-align: center;">* Dados sincronizados com o Supabase.</p>
         </div>
     </div>
 
@@ -132,7 +133,12 @@
         </div>
     </div>
 
+    <script src="script.js"></script>
     <script>
+        // Usa o cliente global que já está no script.js
+        const dbClient = window.supabaseClient || null;
+
+        // ----- MÁSCARAS -----
         function mascaraCNPJ(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 14) value = value.slice(0, 14);
@@ -155,6 +161,7 @@
             input.value = value;
         }
 
+        // ----- LOGO -----
         function previewLogo(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -176,12 +183,27 @@
             document.getElementById('btn-remove-logo').style.display = 'none';
         }
 
-        const STORAGE_KEY = 'empresasData';
+        // ----- CRUD (SUPABASE + FALLBACK LOCAL) -----
         let dados = [];
         let editandoId = null;
 
-        function salvarLocal() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+        async function carregarDados() {
+            if (dbClient) {
+                try {
+                    const { data, error } = await dbClient.from('empresas').select('*');
+                    if (!error && data) {
+                        dados = data;
+                    } else {
+                        throw error || new Error("Sem dados");
+                    }
+                } catch (e) {
+                    console.error('Erro ao buscar do Supabase, usando local:', e);
+                    dados = JSON.parse(localStorage.getItem('empresasData')) || [];
+                }
+            } else {
+                dados = JSON.parse(localStorage.getItem('empresasData')) || [];
+            }
+            renderizarTabela();
         }
 
         function renderizarTabela(filtro = '') {
@@ -210,17 +232,21 @@
                 tr.appendChild(tdLogo);
 
                 const tdRazao = document.createElement('td');
-                tdRazao.style.padding = '10px'; tdRazao.style.color = '#1e3a8a'; tdRazao.style.fontWeight = '600';
+                tdRazao.style.padding = '10px';
+                tdRazao.style.color = '#1e3a8a';
+                tdRazao.style.fontWeight = '600';
                 tdRazao.textContent = item.razao;
                 tr.appendChild(tdRazao);
 
                 const tdCnpj = document.createElement('td');
-                tdCnpj.style.padding = '10px'; tdCnpj.style.color = '#64748b';
+                tdCnpj.style.padding = '10px';
+                tdCnpj.style.color = '#64748b';
                 tdCnpj.textContent = item.cnpj;
                 tr.appendChild(tdCnpj);
 
                 const tdAcoes = document.createElement('td');
-                tdAcoes.style.padding = '10px'; tdAcoes.style.textAlign = 'center';
+                tdAcoes.style.padding = '10px';
+                tdAcoes.style.textAlign = 'center';
                 tdAcoes.innerHTML = `
                     <button onclick="editarRegistro(${item.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;margin-right:8px;"><i class="fas fa-edit"></i></button>
                     <button onclick="excluirRegistro(${item.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;"><i class="fas fa-trash"></i></button>
@@ -253,22 +279,29 @@
             document.getElementById('email').value = item ? item.email || '' : '';
             if (item && item.logo) {
                 const preview = document.getElementById('preview-logo');
-                preview.src = item.logo; preview.style.display = 'block';
+                preview.src = item.logo;
+                preview.style.display = 'block';
                 document.getElementById('btn-remove-logo').style.display = 'block';
-            } else { removerImagem(); }
+            } else {
+                removerImagem();
+            }
             editandoId = item ? item.id : null;
         }
 
         function fecharModal() {
             document.getElementById('modal').style.display = 'none';
             document.getElementById('form-empresa').reset();
-            removerImagem(); editandoId = null;
+            removerImagem();
+            editandoId = null;
         }
 
-        function salvarRegistro() {
+        async function salvarRegistro() {
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
-            if (!razao || !cnpj) { alert('Preencha Razão Social e CNPJ.'); return; }
+            if (!razao || !cnpj) {
+                alert('Preencha Razão Social e CNPJ.');
+                return;
+            }
             const data_abertura = document.getElementById('data_abertura').value;
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
@@ -280,27 +313,74 @@
             const email = document.getElementById('email').value.trim();
             const logo = document.getElementById('preview-logo').src || '';
 
-            if (editandoId) {
-                const index = dados.findIndex(d => d.id === editandoId);
-                if (index !== -1) dados[index] = { id: editandoId, razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
+            const novoRegistro = { razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
+
+            if (dbClient) {
+                try {
+                    if (editandoId) {
+                        const { error } = await dbClient.from('empresas').update(novoRegistro).eq('id', editandoId);
+                        if (error) throw error;
+                    } else {
+                        const { error } = await dbClient.from('empresas').insert(novoRegistro);
+                        if (error) throw error;
+                    }
+                } catch (e) {
+                    console.error('Erro no Supabase, salvando local:', e);
+                    // Fallback local
+                    if (editandoId) {
+                        const index = dados.findIndex(d => d.id === editandoId);
+                        if (index !== -1) dados[index] = { id: editandoId, ...novoRegistro };
+                    } else {
+                        dados.push({ id: Date.now(), ...novoRegistro });
+                    }
+                    localStorage.setItem('empresasData', JSON.stringify(dados));
+                }
             } else {
-                dados.push({ id: Date.now(), razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo });
+                if (editandoId) {
+                    const index = dados.findIndex(d => d.id === editandoId);
+                    if (index !== -1) dados[index] = { id: editandoId, ...novoRegistro };
+                } else {
+                    dados.push({ id: Date.now(), ...novoRegistro });
+                }
+                localStorage.setItem('empresasData', JSON.stringify(dados));
             }
-            salvarLocal(); fecharModal(); renderizarTabela();
+
+            fecharModal();
+            carregarDados();
         }
 
-        function editarRegistro(id) {
+        async function editarRegistro(id) {
+            if (dbClient) {
+                try {
+                    const { data } = await dbClient.from('empresas').select('*').eq('id', id).single();
+                    if (data) {
+                        abrirModal(data);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Erro ao buscar do Supabase, usando local:', e);
+                }
+            }
             const item = dados.find(d => d.id === id);
             if (item) abrirModal(item);
         }
 
-        function excluirRegistro(id) {
+        async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
+            if (dbClient) {
+                try {
+                    const { error } = await dbClient.from('empresas').delete().eq('id', id);
+                    if (error) throw error;
+                } catch (e) {
+                    console.error('Erro no Supabase, excluindo local:', e);
+                }
+            }
             dados = dados.filter(d => d.id !== id);
-            salvarLocal(); renderizarTabela();
+            localStorage.setItem('empresasData', JSON.stringify(dados));
+            carregarDados();
         }
 
-        renderizarTabela();
+        carregarDados();
     </script>
 </body>
 </html>

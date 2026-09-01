@@ -32,7 +32,10 @@
         if (localStorage.getItem('isLoggedIn') !== 'true') window.location.href = 'index.html';
     </script>
 
+    <!-- Sidebar -->
     <div id="sidebar-container"></div>
+
+    <!-- Conteúdo principal -->
     <div class="main-content-empresa" style="padding: 40px; transition: margin-left 0.3s ease;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
             <h1 style="color: #1e3a8a;">Acompanhamento de Devoluções</h1>
@@ -46,12 +49,14 @@
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
         <div id="status-importacao" style="margin-bottom: 15px; color: #1e3a8a; font-weight: 600; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px;"></div>
 
+        <!-- Botão Mostrar/Ocultar Filtros -->
         <div style="margin-bottom: 15px;">
             <button onclick="toggleFiltros()" class="btn-outline" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px;">
                 <i class="fas fa-filter" id="icone-filtro"></i> <span id="texto-filtro">Mostrar Filtros</span>
             </button>
         </div>
 
+        <!-- Painel de Filtros -->
         <div id="painel-filtros" style="display: none; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div><label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Inicial</label><input type="date" id="filtro_data_inicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;"></div>
@@ -75,6 +80,7 @@
             </div>
         </div>
 
+        <!-- Tabela -->
         <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px;">
             <div style="max-height: 550px; overflow-y: auto; overflow-x: auto; border: 1px solid #e0f2fe; border-radius: 12px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -90,6 +96,7 @@
         </div>
     </div>
 
+    <!-- Overlay de carregamento -->
     <div id="overlay-carregamento" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column;">
         <div style="width: 120px; height: 120px; position: relative;">
             <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; transform: rotate(-90deg);">
@@ -101,6 +108,7 @@
         <p style="color: #1e3a8a; font-weight: 500; margin-top: 20px;" id="texto-carregamento">Carregando...</p>
     </div>
 
+    <!-- Modal de Filtro -->
     <div id="modal-filtro-overlay" class="modal-filtro-overlay">
         <div class="modal-filtro-box">
             <div class="modal-filtro-header">
@@ -120,6 +128,7 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
+        // Definição das colunas
         const COLUNAS = [
             { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
             { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
@@ -181,6 +190,7 @@
         let filtroAtual = null;
         let sortState = { col: null, asc: true };
 
+        // Funções de carregamento (overlay)
         function mostrarCarregamento(texto = 'Carregando...') {
             document.getElementById('texto-carregamento').textContent = texto;
             document.getElementById('overlay-carregamento').style.display = 'flex';
@@ -198,6 +208,7 @@
             document.getElementById('overlay-carregamento').style.display = 'none';
         }
 
+        // Toggle filtros
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             const texto = document.getElementById('texto-filtro');
@@ -215,6 +226,7 @@
             }
         }
 
+        // Modal de filtro com paginação
         async function abrirModalFiltro(coluna) {
             const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
             if (!filtro) return;
@@ -311,6 +323,7 @@
             atualizarSelecaoModal();
         }
 
+        // Executar filtros
         async function executarFiltros() {
             mostrarCarregamento('Aplicando filtros...');
             await new Promise(r => setTimeout(r, 50));
@@ -351,6 +364,7 @@
             carregarDevolucoes();
         }
 
+        // Paginação
         function mudarPagina(delta) {
             const novaPagina = paginaAtual + delta;
             if (novaPagina < 1) return;
@@ -390,6 +404,7 @@
             document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
         }
 
+        // Formatação
         function formatarData(valor) {
             if (!valor) return '';
             if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
@@ -431,6 +446,7 @@
             }
         }
 
+        // Ordenação
         function ordenarPor(colKey) {
             if (sortState.col === colKey) {
                 sortState.asc = !sortState.asc;
@@ -467,6 +483,7 @@
             renderizarTabela(todosDados);
         }
 
+        // Renderizar tabela
         function renderizarTabela(dados) {
             const thead = document.getElementById('thead-tabela');
             const tbody = document.getElementById('tabela-devolucoes');
@@ -490,6 +507,7 @@
             });
         }
 
+        // Exportar Excel
         function exportarExcel() {
             if (todosDados.length === 0) { alert('Nenhum dado para exportar.'); return; }
             const ws_data = [COLUNAS.map(col => col.label)];
@@ -502,6 +520,7 @@
             XLSX.writeFile(wb, 'devolucoes.xlsx');
         }
 
+        // Importação
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
@@ -518,7 +537,11 @@
 
         function mapearLinha(linha, empresaId) {
             const fornecedor = linha[1] ? String(linha[1]).trim() : '';
-            const fornecedorPrincipal = fornecedor ? fornecedor.split(' ')[0] : '';
+            let fornecedorPrincipal = '';
+            if (fornecedor) {
+                const palavras = fornecedor.split(' ').filter(p => p !== '');
+                fornecedorPrincipal = palavras.slice(0, 2).join(' ');
+            }
             return {
                 empresa_id: empresaId,
                 codfornec: linha[0] || '',
@@ -620,6 +643,7 @@
             else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
         }
 
+        // Carregar dados
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;

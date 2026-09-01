@@ -33,6 +33,7 @@ body {
     overflow-x: hidden;
 }
 
+/* Fundo com leve gradiente radial */
 body::after {
     content: '';
     position: fixed;
@@ -42,19 +43,21 @@ body::after {
     pointer-events: none;
 }
 
+/* Marca D'água - CORRIGIDO: Agora aponta para logotipo-principal.png */
 .watermark {
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    background-image: url('logo-principal.png');
-    background-size: 70% auto;
+    background-image: url('logotipo-principal.png');
+    background-size: 50% auto;
     background-repeat: no-repeat;
     background-position: center;
     opacity: 0.08;
     filter: blur(2px);
 }
 
+/* Botão Primário */
 .btn-primary {
     position: relative;
     background: var(--gradient-primary);
@@ -217,7 +220,6 @@ input::placeholder {
     color: var(--text-secondary);
 }
 
-/* Tabela */
 #tableWrapper {
     scrollbar-width: thin;
     scrollbar-color: #3b82f6 #e0f2fe;
@@ -247,43 +249,6 @@ input::placeholder {
 #filterScrollArea::-webkit-scrollbar-thumb {
     background-color: #3b82f6;
     border-radius: 10px;
-}
-
-/* DONUT DE CARREGAMENTO (BRANCO E AZUL CLARO) */
-.donut-container {
-    position: relative;
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.donut-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: conic-gradient(#60a5fa var(--progress, 0%), #ffffff var(--progress, 0%));
-    transition: background 0.1s ease;
-}
-
-.donut-inner {
-    position: absolute;
-    inset: 14px;
-    border-radius: 50%;
-    background: #1e3a8a; /* Azul escuro para combinar com o overlay */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-}
-
-.donut-text {
-    color: #ffffff;
-    font-size: 1.4rem;
-    font-weight: bold;
 }
 
 @media (max-width: 600px) {

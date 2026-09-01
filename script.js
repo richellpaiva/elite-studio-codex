@@ -5,49 +5,74 @@ const SUPABASE_URL = 'https://wkugyzxnbcvxetsawmaz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IQ3w71GgWpu18YA4mZWL3Q_3tJ59ATO';
 
 let supabaseClient = null;
-if (typeof window.supabase !== 'undefined') {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.supabaseClient = supabaseClient;
-} else {
-    console.warn("Biblioteca Supabase não carregada.");
+
+// Função para inicializar o cliente após o carregamento da biblioteca
+function initSupabase() {
+    if (typeof window.supabase !== 'undefined' && !supabaseClient) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabaseClient = supabaseClient;
+        console.log("Supabase conectado com sucesso!");
+    } else {
+        console.warn("Biblioteca Supabase ainda não carregada. Tentando novamente...");
+        setTimeout(initSupabase, 200); // Tenta novamente em 200ms
+    }
 }
 
+// Inicializa quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initSupabase);
+
 // ==============================================
-// 2. AUTENTICAÇÃO E PROTEÇÃO DE ROTAS
+// 2. AUTENTICAÇÃO (Agora com Supabase)
 // ==============================================
 
 function logout() {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userName');
     localStorage.removeItem('empresaId');
+    localStorage.removeItem('userId');
     window.location.href = 'index.html';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const loginInput = document.getElementById('login').value;
-            const passInput = document.getElementById('password').value;
-            let users = JSON.parse(localStorage.getItem('users')) || [];
-            const userFound = users.find(u => u.login === loginInput && u.pass === passInput);
-            if (userFound) {
-                localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('userName', userFound.name);
-                localStorage.setItem('empresaId', userFound.empresaId || 1);
-                window.location.href = 'home.html';
-            } else {
-                const errorMsg = document.getElementById('loginError');
-                if(errorMsg) errorMsg.style.display = 'block';
-            }
-        });
+// Função chamada ao submeter o formulário de login (definida no index.html)
+async function handleLogin(loginInput, passInput) {
+    // Garante que o cliente esteja pronto
+    if (!supabaseClient) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!supabaseClient) {
+            alert("Erro: Banco de dados não conectado. Verifique sua internet.");
+            return;
+        }
     }
-});
 
-function redirectIfNotLoggedIn() {
-    if (localStorage.getItem('isLoggedIn') !== 'true') {
-        window.location.href = 'index.html';
+    // Busca o usuário no banco de dados
+    const { data, error } = await supabaseClient
+        .from('usuarios')
+        .select('*')
+        .eq('login', loginInput)
+        .eq('senha', passInput)
+        .single();
+
+    if (error) {
+        console.error("Erro ao buscar usuário:", error);
+        alert("Usuário ou senha incorretos.");
+        return;
+    }
+
+    if (data) {
+        // Usuário encontrado no banco
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userName', data.nome);
+        localStorage.setItem('userId', data.id);
+        localStorage.setItem('empresaId', data.empresa_id || '');
+
+        // Redireciona para o painel correto
+        if (data.empresa_id) {
+            window.location.href = 'painel-empresa.html';
+        } else {
+            window.location.href = 'home.html';
+        }
+    } else {
+        alert("Usuário ou senha incorretos.");
     }
 }
 

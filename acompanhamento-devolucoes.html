@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento de Devoluções</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') window.location.href = 'index.html';
+    </script>
+
+    <!-- Container da sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Conteúdo principal -->
+    <div class="main-content-empresa" style="padding: 40px; transition: margin-left 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+            <h1 style="color: #1e3a8a;">Acompanhamento de Devoluções</h1>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-upload"></i> Importar Planilhas</button>
+                <button onclick="atualizarBanco()" class="btn-outline" style="padding: 10px 20px;"><i class="fas fa-sync-alt"></i> Atualizar Banco</button>
+            </div>
+        </div>
+        <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
+        <div id="status-importacao" style="margin-bottom: 15px; color: #64748b;"></div>
+        
+        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
+                        <th style="padding: 12px;">Data</th>
+                        <th style="padding: 12px;">Fornecedor</th>
+                        <th style="padding: 12px;">Produto</th>
+                        <th style="padding: 12px;">Qtd</th>
+                        <th style="padding: 12px;">Cliente</th>
+                        <th style="padding: 12px;">Motivo</th>
+                        <th style="padding: 12px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-devolucoes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="sidebar-empresa.js"></script>
+    <script>
+        // ========== LÓGICA DE DEVOLUÇÕES ==========
+        let listaArquivos = [];
+
+        function adicionarArquivos(event) {
+            const files = Array.from(event.target.files);
+            listaArquivos = listaArquivos.concat(files);
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Atualizar Banco" para processar.`;
+            event.target.value = '';
+        }
+
+        async function processarArquivos() {
+            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return; }
+            const db = window.supabaseClient;
+            if (!db) { alert('Banco não conectado.'); return; }
+            const empresaId = localStorage.getItem('empresaId');
+            const statusEl = document.getElementById('status-importacao');
+            
+            let todasLinhas = [];
+            for (let i = 0; i < listaArquivos.length; i++) {
+                const file = listaArquivos[i];
+                statusEl.textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
+                try {
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                    
+                    json.forEach(row => {
+                        todasLinhas.push({
+                            empresa_id: empresaId,
+                            codfornec: row['CODFORNEC'] || '',
+                            fornecedor: row['FORNECEDOR'] || '',
+                            numped: row['NUMPED'] || '',
+                            numnota: row['NUMNOTA'] || '',
+                            chavenfedev: row['CHAVENFEDEV'] || '',
+                            dtent: row['DTENT'] || '',
+                            codcli: row['CODCLI'] || '',
+                            cpfcnpj: row['CPFCNPJ'] || '',
+                            cliente: row['CLIENTE'] || '',
+                            codrca: row['CODRCA'] || '',
+                            nomerca: row['NOMERCA'] || '',
+                            codsupervisor: row['CODSUPERVISOR'] || '',
+                            nomesup: row['NOMESUP'] || '',
+                            numnotaven: row['NUMNOTAVEN'] || '',
+                            chavenfevend: row['CHAVENFEVEND'] || '',
+                            numcarregamento: row['NUMCARREGAMENTO'] || '',
+                            codprod: row['CODPROD'] || '',
+                            descricao: row['DESCRICAO'] || '',
+                            embalagem: row['EMBALAGEM'] || '',
+                            qt: row['QT'] || '',
+                            punit: row['PUNIT'] || '',
+                            custoultent: row['CUSTOULTENT'] || '',
+                            vltotal: row['VLTOTAL'] || '',
+                            nomefunc: row['NOMEFUNC'] || '',
+                            motivo: row['MOTIVO'] || '',
+                            numbonus: row['NUMBONUS'] || '',
+                            codfuncfecha: row['CODFUNCFECHA'] || '',
+                            nome: row['NOME'] || '',
+                            codmotorista: row['CODMOTORISTA'] || '',
+                            motorista: row['MOTORISTA'] || '',
+                            codrota: row['CODROTA'] || '',
+                            rota: row['ROTA'] || '',
+                            veiculo: row['VEICULO'] || '',
+                            placa: row['PLACA'] || ''
+                        });
+                    });
+                } catch (e) {
+                    alert('Erro ao ler arquivo ' + file.name + ': ' + e.message);
+                    return;
+                }
+            }
+
+            if (todasLinhas.length === 0) {
+                statusEl.textContent = 'Nenhuma linha válida encontrada nos arquivos.';
+                return;
+            }
+
+            statusEl.textContent = `Inserindo ${todasLinhas.length} registros...`;
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < todasLinhas.length; i += CHUNK_SIZE) {
+                const chunk = todasLinhas.slice(i, i + CHUNK_SIZE);
+                const { error } = await db.from('devolucoes').insert(chunk);
+                if (error) { alert('Erro ao inserir: ' + error.message); return; }
+            }
+            statusEl.textContent = 'Importação concluída!';
+            listaArquivos = [];
+            await carregarDevolucoes();
+        }
+
+        async function atualizarBanco() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            if (!confirm('Isso vai apagar TODOS os dados e importar os arquivos. Deseja continuar?')) return;
+
+            const statusEl = document.getElementById('status-importacao');
+            statusEl.textContent = 'Apagando dados antigos...';
+            const { error: delErr } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
+            if (delErr) { alert('Erro ao apagar: ' + delErr.message); return; }
+
+            if (listaArquivos.length > 0) {
+                await processarArquivos();
+            } else {
+                statusEl.textContent = 'Nenhum arquivo selecionado. Dados apagados.';
+                await carregarDevolucoes();
+            }
+        }
+
+        async function carregarDevolucoes() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).order('created_at', { ascending: false });
+            if (error) return;
+            const tbody = document.getElementById('tabela-devolucoes');
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #64748b;">Nenhuma devolução registrada</td></tr>';
+                return;
+            }
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
+                tr.innerHTML = `
+                    <td style="padding: 10px;">${item.dtent || ''}</td>
+                    <td style="padding: 10px;">${item.fornecedor || ''}</td>
+                    <td style="padding: 10px;">${item.descricao || ''}</td>
+                    <td style="padding: 10px;">${item.qt || ''}</td>
+                    <td style="padding: 10px;">${item.cliente || ''}</td>
+                    <td style="padding: 10px;">${item.motivo || ''}</td>
+                    <td style="padding: 10px;">
+                        <button onclick="excluirDevolucao('${item.id}')" style="background: transparent; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function excluirDevolucao(id) {
+            if (!confirm('Excluir este registro?')) return;
+            const db = window.supabaseClient;
+            const { error } = await db.from('devolucoes').delete().eq('id', id);
+            if (error) { alert('Erro: ' + error.message); return; }
+            carregarDevolucoes();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // O sidebar será injetado automaticamente pelo sidebar-empresa.js
+            // Precisamos garantir que o carregamento das devoluções aconteça APÓS o supabase estar pronto
+            const wait = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(wait);
+                    carregarDevolucoes();
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

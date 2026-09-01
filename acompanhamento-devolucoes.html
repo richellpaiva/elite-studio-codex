@@ -8,6 +8,45 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* Estilos adicionais para os modais de filtro */
+        .modal-filtro-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(30, 58, 138, 0.4); backdrop-filter: blur(6px);
+            z-index: 9998; display: none; align-items: center; justify-content: center;
+        }
+        .modal-filtro-box {
+            background: #fff; border-radius: 24px; padding: 30px; max-width: 500px;
+            width: 95%; max-height: 80vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(31, 38, 135, 0.3); border: 1px solid rgba(59,130,246,0.2);
+        }
+        .modal-filtro-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; border-bottom: 1px solid #e0f2fe; padding-bottom: 10px;
+        }
+        .modal-filtro-header h3 { margin: 0; color: #1e3a8a; }
+        .modal-filtro-box input[type="text"] {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px;
+        }
+        .modal-filtro-lista {
+            max-height: 300px; overflow-y: auto; flex: 1; margin-bottom: 15px;
+            border: 1px solid #e0f2fe; border-radius: 8px; padding: 10px;
+        }
+        .modal-filtro-lista label {
+            display: flex; align-items: center; gap: 10px; padding: 8px;
+            border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 1rem; color: #1e3a8a;
+        }
+        .modal-filtro-lista label:hover { background: #e0f2fe; }
+        .modal-filtro-botoes {
+            display: flex; justify-content: flex-end; gap: 10px; margin-top: auto;
+        }
+        .btn-acao { padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; }
+        .btn-azul { background: #3b82f6; color: white; }
+        .btn-azul:hover { background: #2563eb; }
+        .btn-cinza { background: #e2e8f0; color: #1e3a8a; }
+        .btn-cinza:hover { background: #cbd5e1; }
+        .btn-vermelho { background: #ef4444; color: white; }
+    </style>
 </head>
 <body>
     <script>
@@ -36,32 +75,46 @@
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
         <div id="status-importacao" style="margin-bottom: 15px; color: #1e3a8a; font-weight: 600; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px;"></div>
 
-        <!-- FILTROS -->
-        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <h3 style="color: #1e3a8a; margin-bottom: 15px;"><i class="fas fa-filter"></i> Filtros</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;">
-                
-                <div>
-                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">Data Inicial</label>
-                    <input type="date" id="filtro_data_inicio" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                </div>
-                <div>
-                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">Data Final</label>
-                    <input type="date" id="filtro_data_fim" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                </div>
+        <!-- Botão para exibir/ocultar filtros -->
+        <div style="margin-bottom: 15px;">
+            <button onclick="toggleFiltros()" class="btn-outline" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px;">
+                <i class="fas fa-filter" id="icone-filtro"></i> <span id="texto-filtro">Mostrar Filtros</span>
+            </button>
+        </div>
 
-                <div id="filtros-dropdowns" style="display: contents;"></div>
-
-                <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
-                    <button onclick="limparFiltros()" style="padding: 10px 20px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #1e3a8a; cursor: pointer;"><i class="fas fa-eraser"></i> Limpar Filtros</button>
-                    <button onclick="executarFiltros()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-play"></i> Executar Filtros</button>
+        <!-- Painel de Filtros (oculto por padrão) -->
+        <div id="painel-filtros" style="display: none; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Inicial</label>
+                    <input type="date" id="filtro_data_inicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
                 </div>
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Final</label>
+                    <input type="date" id="filtro_data_fim" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+                <!-- Botões para abrir modais de filtro -->
+                <button onclick="abrirModalFiltro('fornecedor')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-truck"></i> Fornecedores</button>
+                <button onclick="abrirModalFiltro('codprod')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-barcode"></i> Código Produto</button>
+                <button onclick="abrirModalFiltro('descricao')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-box"></i> Descrição</button>
+                <button onclick="abrirModalFiltro('motivo')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-comment"></i> Motivo</button>
+                <button onclick="abrirModalFiltro('nomerca')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-user"></i> Vendedores</button>
+                <button onclick="abrirModalFiltro('nomesup')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-user-tie"></i> Supervisores</button>
+                <button onclick="abrirModalFiltro('motorista')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-id-card"></i> Motoristas</button>
+                <button onclick="abrirModalFiltro('rota')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-route"></i> Rotas</button>
+                <button onclick="abrirModalFiltro('placa')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-car"></i> Placas</button>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button onclick="limparFiltros()" class="btn-acao btn-cinza"><i class="fas fa-eraser"></i> Limpar Filtros</button>
+                <button onclick="executarFiltros()" class="btn-acao btn-azul"><i class="fas fa-play"></i> Executar Filtros</button>
             </div>
         </div>
 
         <!-- TABELA -->
-        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; position: relative;">
-            <div style="max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #e0f2fe; border-radius: 12px;">
+        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px;">
+            <div style="max-height: 550px; overflow-y: auto; overflow-x: auto; border: 1px solid #e0f2fe; border-radius: 12px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead id="thead-tabela" style="position: sticky; top: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; z-index: 10;"></thead>
                     <tbody id="tabela-devolucoes"></tbody>
@@ -82,45 +135,45 @@
         <p style="color: #1e3a8a; font-weight: 500; margin-top: 20px;" id="texto-carregamento">Carregando...</p>
     </div>
 
+    <!-- Overlay do modal de filtro -->
+    <div id="modal-filtro-overlay" class="modal-filtro-overlay">
+        <div class="modal-filtro-box">
+            <div class="modal-filtro-header">
+                <h3 id="modal-filtro-titulo">Filtro</h3>
+                <button onclick="fecharModalFiltro()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <input type="text" id="modal-filtro-busca" placeholder="Digite para buscar..." oninput="filtrarOpcoesModal()">
+            <div id="modal-filtro-lista" class="modal-filtro-lista"></div>
+            <div class="modal-filtro-botoes">
+                <button onclick="selecionarTodosModal()" class="btn-acao btn-cinza">Todos</button>
+                <button onclick="limparSelecaoModal()" class="btn-acao btn-cinza">Limpar</button>
+                <button onclick="fecharModalFiltro()" class="btn-acao btn-azul">Concluir</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
         // Definição das colunas (todas as 34)
         const COLUNAS = [
-            { key: 'codfornec', label: 'COD_FORNEC' },
-            { key: 'fornecedor', label: 'FORNECEDOR' },
-            { key: 'numped', label: 'NUMPED' },
-            { key: 'numnota', label: 'NUMNOTA' },
-            { key: 'chavenfedev', label: 'CHAVE_NFE_DEV' },
-            { key: 'dtent', label: 'DT_ENT' },
-            { key: 'codcli', label: 'COD_CLI' },
-            { key: 'cpfcnpj', label: 'CPF_CNPJ' },
-            { key: 'cliente', label: 'CLIENTE' },
-            { key: 'codrca', label: 'COD_RCA' },
-            { key: 'nomerca', label: 'NOME_RCA' },
-            { key: 'codsupervisor', label: 'COD_SUP' },
-            { key: 'nomesup', label: 'NOME_SUP' },
-            { key: 'numnotaven', label: 'NUMNOTAVEN' },
-            { key: 'chavenfevend', label: 'CHAVE_NFE_VEND' },
-            { key: 'numcarregamento', label: 'NUM_CARREG' },
-            { key: 'codprod', label: 'COD_PROD' },
-            { key: 'descricao', label: 'DESCRICAO' },
-            { key: 'embalagem', label: 'EMBALAGEM' },
-            { key: 'qt', label: 'QT' },
-            { key: 'punit', label: 'P_UNIT' },
-            { key: 'custoultent', label: 'CUSTO_ULT_ENT' },
-            { key: 'vltotal', label: 'VL_TOTAL' },
-            { key: 'nomefunc', label: 'NOME_FUNC' },
-            { key: 'motivo', label: 'MOTIVO' },
-            { key: 'numbonus', label: 'NUM_BONUS' },
-            { key: 'codfuncfecha', label: 'COD_FUNC_FECHA' },
-            { key: 'nome', label: 'NOME' },
-            { key: 'codmotorista', label: 'COD_MOTORISTA' },
-            { key: 'motorista', label: 'MOTORISTA' },
-            { key: 'codrota', label: 'COD_ROTA' },
-            { key: 'rota', label: 'ROTA' },
-            { key: 'veiculo', label: 'VEICULO' },
-            { key: 'placa', label: 'PLACA' }
+            { key: 'codfornec', label: 'COD_FORNEC' }, { key: 'fornecedor', label: 'FORNECEDOR' },
+            { key: 'numped', label: 'NUMPED' }, { key: 'numnota', label: 'NUMNOTA' },
+            { key: 'chavenfedev', label: 'CHAVE_NFE_DEV' }, { key: 'dtent', label: 'DT_ENT' },
+            { key: 'codcli', label: 'COD_CLI' }, { key: 'cpfcnpj', label: 'CPF_CNPJ' },
+            { key: 'cliente', label: 'CLIENTE' }, { key: 'codrca', label: 'COD_RCA' },
+            { key: 'nomerca', label: 'NOME_RCA' }, { key: 'codsupervisor', label: 'COD_SUP' },
+            { key: 'nomesup', label: 'NOME_SUP' }, { key: 'numnotaven', label: 'NUMNOTAVEN' },
+            { key: 'chavenfevend', label: 'CHAVE_NFE_VEND' }, { key: 'numcarregamento', label: 'NUM_CARREG' },
+            { key: 'codprod', label: 'COD_PROD' }, { key: 'descricao', label: 'DESCRICAO' },
+            { key: 'embalagem', label: 'EMBALAGEM' }, { key: 'qt', label: 'QT' },
+            { key: 'punit', label: 'P_UNIT' }, { key: 'custoultent', label: 'CUSTO_ULT_ENT' },
+            { key: 'vltotal', label: 'VL_TOTAL' }, { key: 'nomefunc', label: 'NOME_FUNC' },
+            { key: 'motivo', label: 'MOTIVO' }, { key: 'numbonus', label: 'NUM_BONUS' },
+            { key: 'codfuncfecha', label: 'COD_FUNC_FECHA' }, { key: 'nome', label: 'NOME' },
+            { key: 'codmotorista', label: 'COD_MOTORISTA' }, { key: 'motorista', label: 'MOTORISTA' },
+            { key: 'codrota', label: 'COD_ROTA' }, { key: 'rota', label: 'ROTA' },
+            { key: 'veiculo', label: 'VEICULO' }, { key: 'placa', label: 'PLACA' }
         ];
 
         const FILTROS_DROPDOWN = [
@@ -130,17 +183,19 @@
             { titulo: 'Motivo', coluna: 'motivo' },
             { titulo: 'Vendedores', coluna: 'nomerca' },
             { titulo: 'Supervisores', coluna: 'nomesup' },
-            { titulo: 'Motorista', coluna: 'motorista' },
-            { titulo: 'Rota', coluna: 'rota' },
-            { titulo: 'Placa', coluna: 'placa' }
+            { titulo: 'Motoristas', coluna: 'motorista' },
+            { titulo: 'Rotas', coluna: 'rota' },
+            { titulo: 'Placas', coluna: 'placa' }
         ];
 
         let listaArquivos = [];
         let todosDados = [];
         let dadosFiltrados = [];
         let dadosBanco = [];
+        let filtrosSelecionados = {}; // Guarda os valores selecionados de cada coluna
+        let filtroAtual = null; // Coluna atual do modal
 
-        // ========== FUNÇÕES DE CARREGAMENTO (OVERLAY) ==========
+        // ========== FUNÇÕES DE CARREGAMENTO ==========
         function mostrarCarregamento(texto = 'Carregando...') {
             document.getElementById('texto-carregamento').textContent = texto;
             document.getElementById('overlay-carregamento').style.display = 'flex';
@@ -158,85 +213,86 @@
             document.getElementById('overlay-carregamento').style.display = 'none';
         }
 
-        // ========== GERAÇÃO DE FILTROS DROPDOWN ==========
-        function gerarFiltrosDropdown() {
-            const container = document.getElementById('filtros-dropdowns');
-            container.innerHTML = '';
-            FILTROS_DROPDOWN.forEach((filtro) => {
-                const div = document.createElement('div');
-                div.style.cssText = 'position: relative;';
-                div.innerHTML = `
-                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">${filtro.titulo}</label>
-                    <div style="position: relative;">
-                        <input type="text" id="input_busca_${filtro.coluna}" placeholder="Digite para buscar..." oninput="filtrarOpcoes('${filtro.coluna}')" style="width: 100%; padding: 8px; padding-right: 30px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                        <span onclick="toggleDropdown('${filtro.coluna}')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #64748b;"><i class="fas fa-chevron-down"></i></span>
-                    </div>
-                    <div id="dropdown_${filtro.coluna}" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 50; padding: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                        <div style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
-                            <button onclick="selecionarTodos('${filtro.coluna}')" style="background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.85rem;">Todos</button>
-                            <button onclick="limparSelecao('${filtro.coluna}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem;">Limpar</button>
-                        </div>
-                        <div id="lista_opcoes_${filtro.coluna}"></div>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // ========== POPULAR OPÇÕES DOS FILTROS ==========
-        function popularOpcoesFiltros() {
-            FILTROS_DROPDOWN.forEach(filtro => {
-                const coluna = filtro.coluna;
-                const valores = [...new Set(dadosBanco.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
-                const lista = document.getElementById(`lista_opcoes_${coluna}`);
-                if (lista) {
-                    lista.innerHTML = '';
-                    valores.forEach(val => {
-                        const label = document.createElement('label');
-                        label.style.cssText = 'display: flex; align-items: center; gap: 5px; padding: 3px 5px; cursor: pointer; font-size: 0.9rem;';
-                        label.innerHTML = `<input type="checkbox" value="${val}" onchange="checkboxChange('${coluna}')"> ${val}`;
-                        lista.appendChild(label);
-                    });
-                }
-            });
-        }
-
-        // ========== FUNÇÕES DOS FILTROS DROPDOWN ==========
-        function toggleDropdown(coluna) {
-            const dropdown = document.getElementById(`dropdown_${coluna}`);
-            if (dropdown) {
-                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                if (dropdown.style.display === 'block') {
-                    document.querySelectorAll('[id^="dropdown_"]').forEach(d => {
-                        if (d.id !== `dropdown_${coluna}`) d.style.display = 'none';
-                    });
-                }
+        // ========== CONTROLE DO PAINEL DE FILTROS ==========
+        function toggleFiltros() {
+            const painel = document.getElementById('painel-filtros');
+            const texto = document.getElementById('texto-filtro');
+            const icone = document.getElementById('icone-filtro');
+            if (painel.style.display === 'none') {
+                painel.style.display = 'block';
+                texto.textContent = 'Ocultar Filtros';
+                icone.classList.remove('fa-filter');
+                icone.classList.add('fa-eye-slash');
+            } else {
+                painel.style.display = 'none';
+                texto.textContent = 'Mostrar Filtros';
+                icone.classList.remove('fa-eye-slash');
+                icone.classList.add('fa-filter');
             }
         }
-        function filtrarOpcoes(coluna) {
-            const input = document.getElementById(`input_busca_${coluna}`);
-            const termo = input.value.toLowerCase();
-            const lista = document.getElementById(`lista_opcoes_${coluna}`);
-            const checkboxes = lista.querySelectorAll('label');
-            checkboxes.forEach(label => {
+
+        // ========== MODAL DE FILTRO ==========
+        function abrirModalFiltro(coluna) {
+            const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
+            if (!filtro) return;
+            filtroAtual = coluna;
+            document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + filtro.titulo;
+            document.getElementById('modal-filtro-busca').value = '';
+            // Popula a lista com as opções
+            const valores = [...new Set(dadosBanco.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
+            const lista = document.getElementById('modal-filtro-lista');
+            lista.innerHTML = '';
+            const selecionados = filtrosSelecionados[coluna] || [];
+            valores.forEach(val => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = val;
+                cb.checked = selecionados.includes(val);
+                cb.onchange = () => atualizarSelecaoModal();
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + val));
+                lista.appendChild(label);
+            });
+            document.getElementById('modal-filtro-overlay').style.display = 'flex';
+        }
+
+        function fecharModalFiltro() {
+            document.getElementById('modal-filtro-overlay').style.display = 'none';
+            filtroAtual = null;
+        }
+
+        function filtrarOpcoesModal() {
+            const termo = document.getElementById('modal-filtro-busca').value.toLowerCase();
+            const lista = document.getElementById('modal-filtro-lista');
+            const labels = lista.querySelectorAll('label');
+            labels.forEach(label => {
                 const texto = label.textContent.toLowerCase();
                 label.style.display = texto.includes(termo) ? 'flex' : 'none';
             });
         }
-        function selecionarTodos(coluna) {
-            const lista = document.getElementById(`lista_opcoes_${coluna}`);
-            lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-        }
-        function limparSelecao(coluna) {
-            const lista = document.getElementById(`lista_opcoes_${coluna}`);
-            lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-        }
-        function checkboxChange(coluna) {
-            const lista = document.getElementById(`lista_opcoes_${coluna}`);
+
+        function atualizarSelecaoModal() {
+            const lista = document.getElementById('modal-filtro-lista');
             const checkboxes = lista.querySelectorAll('input[type="checkbox"]:checked');
             const valores = Array.from(checkboxes).map(cb => cb.value);
-            const input = document.getElementById(`input_busca_${coluna}`);
-            input.value = valores.join(', ');
+            if (filtroAtual) {
+                filtrosSelecionados[filtroAtual] = valores;
+            }
+        }
+
+        function selecionarTodosModal() {
+            const lista = document.getElementById('modal-filtro-lista');
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            atualizarSelecaoModal();
+        }
+
+        function limparSelecaoModal() {
+            const lista = document.getElementById('modal-filtro-lista');
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            atualizarSelecaoModal();
         }
 
         // ========== EXECUTAR FILTROS ==========
@@ -252,12 +308,9 @@
                 if (dataFim && item.dtent > dataFim) return false;
                 for (const filtro of FILTROS_DROPDOWN) {
                     const coluna = filtro.coluna;
-                    const lista = document.getElementById(`lista_opcoes_${coluna}`);
-                    if (lista) {
-                        const selecionados = Array.from(lista.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-                        if (selecionados.length > 0 && !selecionados.includes(item[coluna])) {
-                            return false;
-                        }
+                    const selecionados = filtrosSelecionados[coluna] || [];
+                    if (selecionados.length > 0 && !selecionados.includes(item[coluna])) {
+                        return false;
                     }
                 }
                 return true;
@@ -271,18 +324,14 @@
         function limparFiltros() {
             document.getElementById('filtro_data_inicio').value = '';
             document.getElementById('filtro_data_fim').value = '';
-            FILTROS_DROPDOWN.forEach(filtro => {
-                const coluna = filtro.coluna;
-                const input = document.getElementById(`input_busca_${coluna}`);
-                if (input) input.value = '';
-                const lista = document.getElementById(`lista_opcoes_${coluna}`);
-                if (lista) lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            });
+            filtrosSelecionados = {};
+            // Fecha o modal se estiver aberto
+            fecharModalFiltro();
             dadosFiltrados = todosDados;
             renderizarTabela(dadosFiltrados);
         }
 
-        // ========== RENDERIZAR TABELA (TODAS AS COLUNAS) ==========
+        // ========== RENDERIZAR TABELA ==========
         function renderizarTabela(dados) {
             const thead = document.getElementById('thead-tabela');
             const tbody = document.getElementById('tabela-devolucoes');
@@ -399,12 +448,10 @@
             dadosBanco = [...todosDados];
             dadosFiltrados = [...todosDados];
             renderizarTabela(dadosFiltrados);
-            popularOpcoesFiltros();
         }
 
         // ========== INICIALIZAÇÃO ==========
         document.addEventListener('DOMContentLoaded', async () => {
-            gerarFiltrosDropdown();
             const wait = setInterval(() => {
                 if (window.supabaseClient) {
                     clearInterval(wait);

@@ -1,12 +1,8 @@
 // ==============================================
 // 1. CONFIGURAÇÃO DO SUPABASE (USANDO SERVICE_ROLE - IGUAL À RIFA)
 // ==============================================
-// COLE AQUI A URL DO SEU PROJETO ATUAL (NÃO O DA RIFA)
 const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
-
-// COLE AQUI A CHAVE SERVICE_ROLE DO SEU PROJETO ATUAL (o token JWT com role: service_role)
-// Para pegar: Settings > API > service_role (clicar em "Reveal" e copiar)
-const SUPABASE_SERVICE_KEY = 'COLE_AQUI_SUA_CHAVE_SERVICE_ROLE';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Nzc5NDc2MSwiZXhwIjoyMTAzMzcwNzYxfQ.y-wAXZ0MiFYyVMfc0s_wN1ofHr7LJbeMiqbr9BXrdX8';
 
 let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {

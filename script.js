@@ -1,12 +1,15 @@
 // ==============================================
-// 1. CONFIGURAÇÃO DO SUPABASE (USANDO SERVICE_ROLE - IGUAL À RIFA)
+// 1. CONFIGURAÇÃO DO SUPABASE (CORRIGIDA)
 // ==============================================
-const SUPABASE_URL = 'https://bvlhrwgwdiaucmumvemcgda.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHdyZ3diYXVjdW11dmVtY2dhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Nzc5NDc2MSwiZXhwIjoyMTAzMzcwNzYxfQ.y-wAXZ0MiFYyVMfc0s_wN1ofHr7LJbeMiqbr9BXrdX8';
+// ⚠️ COLE A URL CORRETA COPIADA DO PAINEL (Settings -> API -> Project URL)
+const SUPABASE_URL = 'COLE_AQUI_A_URL_CORRETA_DO_PAINEL';
+
+// ⚠️ COLE A CHAVE 'anon' (pública) COPIADA DO PAINEL (Settings -> API -> anon public)
+const SUPABASE_ANON_KEY = 'COLE_AQUI_A_CHAVE_ANON_CORRETA';
 
 let supabaseClient = null;
 if (typeof window.supabase !== 'undefined') {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabaseClient = supabaseClient;
 } else {
     console.warn("Biblioteca Supabase não carregada.");
@@ -101,16 +104,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveToDatabase(data) {
-    if (!supabaseClient) { alert("Biblioteca Supabase não carregada. Dados salvos localmente."); return; }
+    if (!supabaseClient) { throw new Error("Cliente Supabase não configurado."); }
     const { error: deleteError } = await supabaseClient.from('relatorio_1707').delete().neq('id', 0);
-    if (deleteError) { console.error('Erro ao apagar dados:', deleteError); return; }
+    if (deleteError) throw deleteError;
     const CHUNK_SIZE = 500;
     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
         const chunk = data.slice(i, i + CHUNK_SIZE);
         const { error: insertError } = await supabaseClient.from('relatorio_1707').insert(chunk);
-        if (insertError) { console.error('Erro ao inserir dados:', insertError); return; }
+        if (insertError) throw insertError;
     }
-    alert('Dados salvos com sucesso no banco!');
 }
 
 // ==============================================
@@ -150,7 +152,19 @@ function handleFileUpload(file) {
                 processed = end;
                 updateLoadingProgress(Math.round((processed/total)*100));
                 if (end < total) setTimeout(() => processChunk(end), 15);
-                else { saveToDatabase(parsedData); currentParsedData = parsedData; applyFiltersAndSort(); document.getElementById('previewContainer').style.display = 'block'; document.getElementById('importBtn').style.display = 'flex'; hideLoadingModal(); }
+                else {
+                    saveToDatabase(parsedData).then(() => {
+                        currentParsedData = parsedData;
+                        applyFiltersAndSort();
+                        document.getElementById('previewContainer').style.display = 'block';
+                        document.getElementById('importBtn').style.display = 'flex';
+                        hideLoadingModal();
+                        alert('Dados importados e salvos com sucesso no banco!');
+                    }).catch(err => {
+                        hideLoadingModal();
+                        alert('Erro ao salvar no banco: ' + err.message);
+                    });
+                }
             }
             processChunk(0);
         } catch (error) { alert("Erro: " + error.message); hideLoadingModal(); }

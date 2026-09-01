@@ -20,23 +20,45 @@
         }
     </script>
 
-    <div class="watermark"></div>
-
-    <div class="top-header">
-        <div class="user-tag">
-            <i class="fas fa-building"></i>
-            <span id="empresaNome">Empresa</span>
-            <span style="margin: 0 10px; color: #ccc;">|</span>
-            <i class="fas fa-user-circle"></i> 
-            <span id="loggedUserName"></span>
+    <!-- Menu lateral fixo -->
+    <div class="sidebar" style="position: fixed; left: 0; top: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 30px 20px; z-index: 100; display: flex; flex-direction: column;">
+        
+        <!-- Logo da empresa (carregada do Supabase) -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <img id="empresa-logo" src="" alt="Logo" style="display: none; max-width: 150px; max-height: 100px; object-fit: contain; margin: 0 auto;">
+            <div id="empresa-logo-placeholder" style="width: 80px; height: 80px; background: #e0f2fe; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 40px; margin: 0 auto;">
+                <i class="fas fa-building"></i>
+            </div>
         </div>
-        <button onclick="logout()" class="btn-outline" style="padding: 6px 14px; font-size: 0.8rem;">
-            <i class="fas fa-sign-out-alt"></i> Sair
-        </button>
+
+        <h2 id="empresa-nome" style="color: #1e3a8a; text-align: center; font-size: 1.4rem; margin-bottom: 40px;">Carregando...</h2>
+
+        <!-- Menu de navegação -->
+        <nav style="display: flex; flex-direction: column; gap: 10px;">
+            <a href="acompanhamento-devolucoes.html" style="display: flex; align-items: center; gap: 15px; color: #1e3a8a; text-decoration: none; padding: 15px; border-radius: 12px; transition: 0.3s; font-weight: 500; background: rgba(59,130,246,0.1);">
+                <i class="fas fa-undo-alt" style="color: #3b82f6; font-size: 1.2rem;"></i> Acompanhamento de Devoluções
+            </a>
+            <!-- Adicione os próximos menus aqui -->
+        </nav>
+
+        <!-- Botões no rodapé -->
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(59,130,246,0.2);">
+            <a href="home.html" style="display: flex; align-items: center; gap: 10px; color: #64748b; text-decoration: none; padding: 10px;">
+                <i class="fas fa-arrow-left"></i> Voltar ao Painel Geral
+            </a>
+            <a href="#" onclick="logout()" style="display: flex; align-items: center; gap: 10px; color: #ef4444; text-decoration: none; padding: 10px;">
+                <i class="fas fa-sign-out-alt"></i> Sair
+            </a>
+        </div>
     </div>
 
-    <div class="container-center">
-        <h1 style="font-size: 2.5rem; color: #1e3a8a; margin-bottom: 10px; text-align: center; font-weight: 800;">
+    <!-- Conteúdo principal -->
+    <div style="margin-left: 280px; padding: 40px;">
+        <div class="top-header" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+            <span style="color: #1e3a8a;"><i class="fas fa-user-circle"></i> <span id="loggedUserName"></span></span>
+        </div>
+        
+        <h1 style="font-size: 2.5rem; color: #1e3a8a; margin-bottom: 10px; font-weight: 800;">
             Bem-vindo, <span id="userNameDisplay"></span>
         </h1>
         <p style="color: #3b82f6; font-size: 1.1rem; margin-bottom: 40px; letter-spacing: 1px; font-weight: 500;">
@@ -65,22 +87,51 @@
 
     <script src="script.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const userName = localStorage.getItem('userName') || 'Usuário';
-            const empresaId = parseInt(localStorage.getItem('empresaId') || '1');
-            const empresas = JSON.parse(localStorage.getItem('empresas')) || [];
-            const empresa = empresas.find(e => e.id === empresaId);
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('empresaId');
+            window.location.href = 'index.html';
+        }
 
+        // Buscar dados da empresa no Supabase usando o empresaId salvo no localStorage
+        async function carregarEmpresa() {
+            const dbClient = window.supabaseClient;
+            if (!dbClient) return;
+
+            const empresaId = localStorage.getItem('empresaId');
+            if (!empresaId) {
+                document.getElementById('empresa-nome').textContent = 'Empresa não encontrada';
+                document.getElementById('empresaDisplay').textContent = '—';
+                return;
+            }
+
+            const { data, error } = await dbClient.from('empresas').select('*').eq('id', empresaId).single();
+            if (error) {
+                console.error('Erro ao buscar empresa:', error);
+                document.getElementById('empresa-nome').textContent = 'Empresa não encontrada';
+                return;
+            }
+
+            if (data) {
+                document.getElementById('empresa-nome').textContent = data.razao;
+                document.getElementById('empresaDisplay').textContent = data.razao;
+                
+                if (data.logo && data.logo.trim() !== '') {
+                    const img = document.getElementById('empresa-logo');
+                    img.src = data.logo;
+                    img.style.display = 'block';
+                    document.getElementById('empresa-logo-placeholder').style.display = 'none';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const userName = localStorage.getItem('userName') || 'Usuário';
             document.getElementById('loggedUserName').textContent = userName;
             document.getElementById('userNameDisplay').textContent = userName;
             
-            if (empresa) {
-                document.getElementById('empresaNome').textContent = empresa.nome;
-                document.getElementById('empresaDisplay').textContent = empresa.nome;
-            } else {
-                document.getElementById('empresaNome').textContent = 'Empresa não encontrada';
-                document.getElementById('empresaDisplay').textContent = '—';
-            }
+            await carregarEmpresa();
         });
     </script>
 </body>

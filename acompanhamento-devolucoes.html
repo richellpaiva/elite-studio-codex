@@ -627,111 +627,44 @@
                 if (error) { ocultarCarregamento(); alert('Erro ao inserir: ' + error.message); return; }
             }
             ocultarCarregamento();
-            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados! Verificando duplicados...`;
-            await removerDuplicados();
+            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados! Limpando duplicados...`;
+            
+            // Chama a função SQL otimizada
+            await limparDuplicadosSQL();
+            
             listaArquivos = [];
             await carregarDevolucoes();
         }
 
-        // Função de deduplicação melhorada (mostra quantidades)
-        async function removerDuplicados() {
+        // FUNÇÃO QUE USA A RPC SQL OTIMIZADA
+        async function limparDuplicadosSQL() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
             
-            mostrarCarregamento('Verificando duplicados...');
-            
-            let duplicados = [];
-            
+            mostrarCarregamento('Removendo duplicados de forma otimizada...');
             try {
-                // Tenta usar a função RPC
-                const { data, error } = await db.rpc('get_duplicados', { p_empresa_id: empresaId });
+                const { data, error } = await db.rpc('limpar_duplicados', { p_empresa_id: empresaId });
                 if (error) throw error;
-                duplicados = (data || []).map(item => ({
-                    id_nfe_produt: item.id_nfe_produt,
-                    quantidade: parseInt(item.quantidade || 0, 10)
-                }));
-                console.log('RPC retornou duplicados:', duplicados);
-            } catch (e) {
-                console.warn('RPC de duplicados falhou, usando fallback manual');
-                // Fallback: busca todos os registros e agrupa manualmente
-                const { data: todos, error: err2 } = await db.from('devolucoes')
-                    .select('id, id_nfe_produt, numnota, codprod, dtent, cliente, created_at')
-                    .eq('empresa_id', empresaId);
                 
-                if (err2) {
-                    console.error('Erro no fallback:', err2);
-                    ocultarCarregamento();
-                    alert('Erro ao buscar dados para deduplicação.');
-                    return;
-                }
-
-                // Agrupa por id_nfe_produt (ou fallback por combinação de colunas)
-                const map = {};
-                todos.forEach(item => {
-                    let chave = item.id_nfe_produt;
-                    if (!chave || chave === '') {
-                        chave = `${item.numnota || ''}|${item.codprod || ''}|${item.dtent || ''}|${item.cliente || ''}`;
-                    }
-                    if (!chave) return;
+                if (data && data.length > 0) {
+                    const totalEncontrados = data[0].total_encontrados;
+                    const totalRemovidos = data[0].total_removidos;
                     
-                    if (!map[chave]) map[chave] = [];
-                    map[chave].push(item);
-                });
-                
-                duplicados = Object.entries(map)
-                    .filter(([chave, registros]) => registros.length > 1)
-                    .map(([chave, registros]) => ({
-                        id_nfe_produt: chave,
-                        quantidade: registros.length
-                    }));
-                
-                console.log('Fallback encontrou duplicados:', duplicados);
-            }
-
-            let totalEncontrados = duplicados.reduce((acc, dup) => acc + dup.quantidade, 0);
-
-            if (totalEncontrados === 0) {
-                ocultarCarregamento();
-                document.getElementById('status-importacao').textContent = '✅ 0 duplicados encontrados. Banco íntegro!';
-                console.log('Nenhum duplicado encontrado.');
-                return;
-            }
-
-            document.getElementById('status-importacao').textContent = `⚠️ ${totalEncontrados} registros duplicados encontrados. Removendo...`;
-
-            let gruposProcessados = 0;
-            let totalRemovidos = 0;
-
-            for (const dup of duplicados) {
-                const { data: registros, error: err3 } = await db.from('devolucoes')
-                    .select('id')
-                    .eq('id_nfe_produt', dup.id_nfe_produt)
-                    .order('created_at', { ascending: false });
-
-                if (err3) {
-                    console.error('Erro ao buscar registros do grupo:', err3);
-                    continue;
-                }
-
-                if (registros.length > 1) {
-                    const idsParaRemover = registros.slice(1).map(r => r.id);
-                    const { error: delErr } = await db.from('devolucoes').delete().in('id', idsParaRemover);
-                    if (delErr) {
-                        console.error('Erro ao remover duplicados:', delErr);
+                    if (totalEncontrados === 0) {
+                        document.getElementById('status-importacao').textContent = '✅ 0 duplicados encontrados. Banco íntegro!';
                     } else {
-                        totalRemovidos += idsParaRemover.length;
+                        document.getElementById('status-importacao').textContent = `✅ ${totalRemovidos} duplicados removidos (${totalEncontrados} encontrados). Banco íntegro!`;
                     }
+                } else {
+                    document.getElementById('status-importacao').textContent = '✅ Nenhum duplicado encontrado. Banco íntegro!';
                 }
-
-                gruposProcessados++;
-                atualizarProgresso(Math.round((gruposProcessados / duplicados.length) * 100));
+            } catch (e) {
+                console.error('Erro ao chamar limpar_duplicados:', e);
+                alert('Erro ao limpar duplicados: ' + e.message);
+            } finally {
+                ocultarCarregamento();
             }
-
-            ocultarCarregamento();
-            document.getElementById('status-importacao').textContent = 
-                `✅ ${totalRemovidos} duplicados removidos. Banco íntegro!`;
-            console.log(`Processo finalizado. Encontrados: ${totalEncontrados}, Removidos: ${totalRemovidos}`);
         }
 
         async function substituirTudo() {

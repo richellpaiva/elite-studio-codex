@@ -137,6 +137,16 @@
     <script>
         const dbClient = window.supabaseClient || null;
 
+        // Função para verificar se o Supabase está pronto
+        function aguardarSupabase(callback) {
+            const interval = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(interval);
+                    callback(window.supabaseClient);
+                }
+            }, 100);
+        }
+
         function mascaraCNPJ(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 14) value = value.slice(0, 14);
@@ -150,12 +160,8 @@
         function mascaraTelefone(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 11) value = value.slice(0, 11);
-            if (value.length > 2) {
-                value = '(' + value.substring(0, 2) + ') ' + value.substring(2);
-            }
-            if (value.length > 10) {
-                value = value.substring(0, 10) + '-' + value.substring(10);
-            }
+            if (value.length > 2) value = '(' + value.substring(0, 2) + ') ' + value.substring(2);
+            if (value.length > 10) value = value.substring(0, 10) + '-' + value.substring(10);
             input.value = value;
         }
 
@@ -184,11 +190,12 @@
         let editandoId = null;
 
         async function carregarDados() {
-            if (!dbClient) { alert('Cliente Supabase não configurado. Verifique o script.js'); return; }
-            const { data, error } = await dbClient.from('empresas').select('*');
-            if (error) { console.error('Erro ao carregar empresas:', error); alert('Erro ao carregar do banco: ' + error.message); return; }
-            dados = data || [];
-            renderizarTabela();
+            aguardarSupabase(async (client) => {
+                const { data, error } = await client.from('empresas').select('*');
+                if (error) { console.error('Erro ao carregar empresas:', error); alert('Erro ao carregar do banco: ' + error.message); return; }
+                dados = data || [];
+                renderizarTabela();
+            });
         }
 
         function renderizarTabela(filtro = '') {
@@ -283,10 +290,8 @@
             const razao = document.getElementById('razao').value.trim();
             const cnpj = document.getElementById('cnpj').value.trim();
             if (!razao || !cnpj) { alert('Preencha Razão Social e CNPJ.'); return; }
-            
-            // CORREÇÃO: Se data_abertura estiver vazia, envia null em vez de ""
+
             const data_abertura = document.getElementById('data_abertura').value || null;
-            
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
             const complemento = document.getElementById('complemento').value.trim();
@@ -299,42 +304,48 @@
 
             const novoRegistro = { razao, cnpj, data_abertura, endereco, numero, complemento, bairro, cidade, telefone, celular, email, logo };
 
-            if (!dbClient) { alert('Cliente Supabase não configurado.'); return; }
-
-            try {
-                if (editandoId) {
-                    const { error } = await dbClient.from('empresas').update(novoRegistro).eq('id', editandoId);
-                    if (error) throw error;
-                } else {
-                    const { error } = await dbClient.from('empresas').insert(novoRegistro);
-                    if (error) throw error;
+            aguardarSupabase(async (client) => {
+                try {
+                    if (editandoId) {
+                        const { error } = await client.from('empresas').update(novoRegistro).eq('id', editandoId);
+                        if (error) throw error;
+                    } else {
+                        const { error } = await client.from('empresas').insert(novoRegistro);
+                        if (error) throw error;
+                    }
+                } catch (err) {
+                    console.error('Erro detalhado:', err);
+                    alert('Falha ao salvar no banco de dados. Nenhum dado foi salvo localmente. Detalhes: ' + err.message);
+                    return;
                 }
-            } catch (err) {
-                console.error('Erro detalhado:', err);
-                alert('Falha ao salvar no banco de dados. Nenhum dado foi salvo localmente. Detalhes: ' + err.message);
-                return; // Interrompe, não salva localmente
-            }
-
-            fecharModal();
-            carregarDados();
+                fecharModal();
+                carregarDados();
+            });
         }
 
         async function editarRegistro(id) {
-            if (!dbClient) return;
-            const { data, error } = await dbClient.from('empresas').select('*').eq('id', id).single();
-            if (error) { alert('Erro ao buscar empresa: ' + error.message); return; }
-            if (data) abrirModal(data);
+            aguardarSupabase(async (client) => {
+                const { data, error } = await client.from('empresas').select('*').eq('id', id).single();
+                if (error) { alert('Erro ao buscar empresa: ' + error.message); return; }
+                if (data) abrirModal(data);
+            });
         }
 
         async function excluirRegistro(id) {
             if (!confirm('Deseja excluir esta empresa?')) return;
-            if (!dbClient) return;
-            const { error } = await dbClient.from('empresas').delete().eq('id', id);
-            if (error) { alert('Erro ao excluir: ' + error.message); return; }
-            carregarDados();
+            aguardarSupabase(async (client) => {
+                const { error } = await client.from('empresas').delete().eq('id', id);
+                if (error) { alert('Erro ao excluir: ' + error.message); return; }
+                carregarDados();
+            });
         }
 
-        carregarDados();
+        // Inicialização: usa aguardarSupabase para garantir conexão antes de carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            aguardarSupabase(() => {
+                carregarDados();
+            });
+        });
     </script>
 </body>
 </html>

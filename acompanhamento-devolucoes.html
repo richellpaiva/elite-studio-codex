@@ -57,10 +57,12 @@
                 <div><label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Inicial</label><input type="date" id="filtro_data_inicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;"></div>
                 <div><label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Data Final</label><input type="date" id="filtro_data_fim" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;"></div>
             </div>
+            
+            <!-- FILTROS REORGANIZADOS (DESCRIÇÃO MAIOR, PLACAS NORMAL) -->
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
                 <button onclick="abrirModalFiltro('fornecedor')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-truck"></i> Fornecedores</button>
                 <button onclick="abrirModalFiltro('codprod')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-barcode"></i> Código Produto</button>
-                <button onclick="abrirModalFiltro('descricao')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-box"></i> Descrição</button>
+                <button onclick="abrirModalFiltro('descricao')" class="btn-acao btn-cinza" style="flex: 2; min-width: 250px;"><i class="fas fa-box"></i> Descrição</button>
                 <button onclick="abrirModalFiltro('motivo')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-comment"></i> Motivo</button>
                 <button onclick="abrirModalFiltro('nomerca')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-user"></i> Vendedores</button>
                 <button onclick="abrirModalFiltro('nomesup')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-user-tie"></i> Supervisores</button>
@@ -68,6 +70,7 @@
                 <button onclick="abrirModalFiltro('rota')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-route"></i> Rotas</button>
                 <button onclick="abrirModalFiltro('placa')" class="btn-acao btn-cinza" style="flex: 1; min-width: 150px;"><i class="fas fa-car"></i> Placas</button>
             </div>
+
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
                 <button onclick="limparFiltros()" class="btn-acao btn-cinza"><i class="fas fa-eraser"></i> Limpar Filtros</button>
                 <button onclick="executarFiltros()" class="btn-acao btn-azul"><i class="fas fa-play"></i> Executar Filtros</button>
@@ -179,7 +182,7 @@
         let filtroAtual = null;
         let sortState = { col: null, asc: true };
 
-        // ================== FUNÇÕES DE CARREGAMENTO ==================
+        // Funções de carregamento (overlay)
         function mostrarCarregamento(texto = 'Carregando...') {
             document.getElementById('texto-carregamento').textContent = texto;
             document.getElementById('overlay-carregamento').style.display = 'flex';
@@ -197,7 +200,7 @@
             document.getElementById('overlay-carregamento').style.display = 'none';
         }
 
-        // ================== CONTROLE DO PAINEL DE FILTROS ==================
+        // Toggle filtros
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             const texto = document.getElementById('texto-filtro');
@@ -215,7 +218,7 @@
             }
         }
 
-        // ================== MODAL DE FILTRO ==================
+        // Modal de filtro
         async function abrirModalFiltro(coluna) {
             const filtro = FILTROS_DROPDOWN.find(f => f.coluna === coluna);
             if (!filtro) return;
@@ -282,7 +285,7 @@
             atualizarSelecaoModal();
         }
 
-        // ================== EXECUTAR FILTROS ==================
+        // Executar filtros
         async function executarFiltros() {
             mostrarCarregamento('Aplicando filtros...');
             await new Promise(r => setTimeout(r, 50));
@@ -323,7 +326,7 @@
             carregarDevolucoes();
         }
 
-        // ================== PAGINAÇÃO ==================
+        // Paginação
         function mudarPagina(delta) {
             const novaPagina = paginaAtual + delta;
             if (novaPagina < 1) return;
@@ -363,20 +366,17 @@
             document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
         }
 
-        // ================== FORMATAÇÃO (CORRIGIDA) ==================
+        // Formatação
         function formatarData(valor) {
             if (!valor) return '';
-            // Converte número serial do Excel (ex: 46062) para data
             if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
                 const serial = Number(valor);
-                // 25569 é o offset entre 1/1/1900 e 1/1/1970
                 const data = new Date((serial - 25569) * 86400 * 1000);
                 const dia = String(data.getDate()).padStart(2, '0');
                 const mes = String(data.getMonth() + 1).padStart(2, '0');
                 const ano = data.getFullYear();
                 return `${dia}/${mes}/${ano}`;
             }
-            // Se já veio no formato yyyy-mm-dd
             if (String(valor).includes('-')) {
                 const [ano, mes, dia] = String(valor).split('-');
                 return `${dia}/${mes}/${ano}`;
@@ -408,7 +408,7 @@
             }
         }
 
-        // ================== ORDENAÇÃO ==================
+        // Ordenação
         function ordenarPor(colKey) {
             if (sortState.col === colKey) {
                 sortState.asc = !sortState.asc;
@@ -429,7 +429,6 @@
                     let numB = parseInt(String(valB).replace(/[^\d-]/g, ''), 10);
                     if (!isNaN(numA) && !isNaN(numB)) return sortState.asc ? numA - numB : numB - numA;
                 } else if (col.tipo === 'data') {
-                    // Converte para data para comparar
                     let dataA = formatarData(valA);
                     let dataB = formatarData(valB);
                     let dateA = new Date(dataA.split('/').reverse().join('-'));
@@ -446,7 +445,7 @@
             renderizarTabela(todosDados);
         }
 
-        // ================== RENDERIZAR TABELA ==================
+        // Renderizar tabela
         function renderizarTabela(dados) {
             const thead = document.getElementById('thead-tabela');
             const tbody = document.getElementById('tabela-devolucoes');
@@ -470,7 +469,7 @@
             });
         }
 
-        // ================== EXPORTAR EXCEL ==================
+        // Exportar Excel
         function exportarExcel() {
             if (todosDados.length === 0) { alert('Nenhum dado para exportar.'); return; }
             const ws_data = [COLUNAS.map(col => col.label)];
@@ -483,7 +482,7 @@
             XLSX.writeFile(wb, 'devolucoes.xlsx');
         }
 
-        // ================== IMPORTAÇÃO ==================
+        // Importação
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
@@ -574,7 +573,7 @@
             else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
         }
 
-        // ================== CARREGAR DADOS ==================
+        // Carregar dados
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -594,7 +593,6 @@
             atualizarInfoPagina();
         }
 
-        // ================== INICIALIZAÇÃO ==================
         document.addEventListener('DOMContentLoaded', async () => {
             const wait = setInterval(() => {
                 if (window.supabaseClient) {

@@ -633,55 +633,105 @@
             await carregarDevolucoes();
         }
 
-        // CORRIGIDO: Uso de let e try/catch para não quebrar
+        // Função de deduplicação melhorada (mostra quantidades)
         async function removerDuplicados() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
             
-            mostrarCarregamento('Removendo duplicados e verificando integridade...');
+            mostrarCarregamento('Verificando duplicados...');
             
             let duplicados = [];
             
             try {
-                // Tenta usar a função RPC primeiro
+                // Tenta usar a função RPC
                 const { data, error } = await db.rpc('get_duplicados', { p_empresa_id: empresaId });
                 if (error) throw error;
-                duplicados = data || [];
+                duplicados = (data || []).map(item => ({
+                    id_nfe_produt: item.id_nfe_produt,
+                    quantidade: parseInt(item.quantidade || 0, 10)
+                }));
+                console.log('RPC retornou duplicados:', duplicados);
             } catch (e) {
                 console.warn('RPC de duplicados falhou, usando fallback manual');
-                // Fallback: busca todos e agrupa manualmente
-                const { data: todos } = await db.from('devolucoes').select('id, id_nfe_produt, created_at').eq('empresa_id', empresaId);
+                // Fallback: busca todos os registros e agrupa manualmente
+                const { data: todos, error: err2 } = await db.from('devolucoes')
+                    .select('id, id_nfe_produt, numnota, codprod, dtent, cliente, created_at')
+                    .eq('empresa_id', empresaId);
+                
+                if (err2) {
+                    console.error('Erro no fallback:', err2);
+                    ocultarCarregamento();
+                    alert('Erro ao buscar dados para deduplicação.');
+                    return;
+                }
+
+                // Agrupa por id_nfe_produt (ou fallback por combinação de colunas)
                 const map = {};
                 todos.forEach(item => {
-                    if (!item.id_nfe_produt) return;
-                    if (!map[item.id_nfe_produt]) map[item.id_nfe_produt] = [];
-                    map[item.id_nfe_produt].push(item);
+                    let chave = item.id_nfe_produt;
+                    if (!chave || chave === '') {
+                        chave = `${item.numnota || ''}|${item.codprod || ''}|${item.dtent || ''}|${item.cliente || ''}`;
+                    }
+                    if (!chave) return;
+                    
+                    if (!map[chave]) map[chave] = [];
+                    map[chave].push(item);
                 });
-                duplicados = Object.entries(map).filter(([key, val]) => val.length > 1).map(([key, val]) => ({ id_nfe_produt: key, quantidade: val.length }));
+                
+                duplicados = Object.entries(map)
+                    .filter(([chave, registros]) => registros.length > 1)
+                    .map(([chave, registros]) => ({
+                        id_nfe_produt: chave,
+                        quantidade: registros.length
+                    }));
+                
+                console.log('Fallback encontrou duplicados:', duplicados);
             }
-            
-            if (duplicados.length === 0) {
+
+            let totalEncontrados = duplicados.reduce((acc, dup) => acc + dup.quantidade, 0);
+
+            if (totalEncontrados === 0) {
                 ocultarCarregamento();
-                document.getElementById('status-importacao').textContent = 'Nenhum duplicado encontrado. Banco íntegro!';
+                document.getElementById('status-importacao').textContent = '✅ 0 duplicados encontrados. Banco íntegro!';
+                console.log('Nenhum duplicado encontrado.');
                 return;
             }
-            
-            let totalDuplicados = duplicados.length;
-            let processados = 0;
-            
+
+            document.getElementById('status-importacao').textContent = `⚠️ ${totalEncontrados} registros duplicados encontrados. Removendo...`;
+
+            let gruposProcessados = 0;
+            let totalRemovidos = 0;
+
             for (const dup of duplicados) {
-                const { data: registros } = await db.from('devolucoes').select('id').eq('id_nfe_produt', dup.id_nfe_produt).order('created_at', { ascending: false });
+                const { data: registros, error: err3 } = await db.from('devolucoes')
+                    .select('id')
+                    .eq('id_nfe_produt', dup.id_nfe_produt)
+                    .order('created_at', { ascending: false });
+
+                if (err3) {
+                    console.error('Erro ao buscar registros do grupo:', err3);
+                    continue;
+                }
+
                 if (registros.length > 1) {
                     const idsParaRemover = registros.slice(1).map(r => r.id);
-                    await db.from('devolucoes').delete().in('id', idsParaRemover);
+                    const { error: delErr } = await db.from('devolucoes').delete().in('id', idsParaRemover);
+                    if (delErr) {
+                        console.error('Erro ao remover duplicados:', delErr);
+                    } else {
+                        totalRemovidos += idsParaRemover.length;
+                    }
                 }
-                processados++;
-                atualizarProgresso(Math.round((processados / totalDuplicados) * 100));
+
+                gruposProcessados++;
+                atualizarProgresso(Math.round((gruposProcessados / duplicados.length) * 100));
             }
-            
+
             ocultarCarregamento();
-            document.getElementById('status-importacao').textContent = `✅ ${totalDuplicados} grupos duplicados removidos. Banco íntegro!`;
+            document.getElementById('status-importacao').textContent = 
+                `✅ ${totalRemovidos} duplicados removidos. Banco íntegro!`;
+            console.log(`Processo finalizado. Encontrados: ${totalEncontrados}, Removidos: ${totalRemovidos}`);
         }
 
         async function substituirTudo() {

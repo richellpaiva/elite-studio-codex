@@ -45,11 +45,10 @@
         tbody td:first-child { text-align: left; }
         tbody tr:hover { background: #f8fafc; }
 
-        /* CORREÇÃO: Separação correta */
-        .coluna-valor-mes { border-right: none !important; } /* Primeira coluna do mês: SEM borda */
-        .coluna-fim-mes { border-right: 3px solid #3b82f6 !important; } /* Última coluna do mês (%): Borda azul grossa separando meses */
+        /* Separação: borda azul forte APENAS na última coluna de cada mês */
+        .ultima-coluna-mes { border-right: 3px solid #3b82f6 !important; }
 
-        /* Colunas de Total com fundo azul claro */
+        /* Colunas de total com fundo azul claro */
         .coluna-total { background-color: #dbeafe !important; }
         .coluna-total-header { background: linear-gradient(135deg, #1e40af, #1e3a8a) !important; }
 
@@ -197,6 +196,10 @@
             return isNaN(num) ? 0 : num;
         }
 
+        function formatarMoeda(valor) {
+            return 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function toggleFiltros() {
             const painel = document.getElementById('painel-filtros');
             painel.classList.toggle('ativo');
@@ -335,6 +338,7 @@
             carregarDashboard();
         }
 
+        // Opções dos gráficos com fundo branco e caixas escuras nos valores
         function getChartOptions(formatFunc) {
             return {
                 indexAxis: 'y',
@@ -355,8 +359,14 @@
                     }
                 },
                 scales: {
-                    x: { grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#334155', callback: function(value) { return 'R$ ' + Number(value).toLocaleString('pt-BR'); } } },
-                    y: { grid: { display: false }, ticks: { color: '#334155', font: { size: 12 } } }
+                    x: {
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { color: '#334155', callback: function(value) { return 'R$ ' + Number(value).toLocaleString('pt-BR'); } }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#334155', font: { size: 12 } }
+                    }
                 }
             };
         }
@@ -423,8 +433,9 @@
             const arrayPrincipal = Object.entries(dadosPorPrincipal).sort((a, b) => b[1] - a[1]);
             const arrayFornecedor = Object.entries(dadosPorFornecedor).sort((a, b) => b[1] - a[1]);
 
-            const formatCurrency = (val) => 'R$ ' + Number(val).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            const formatCurrency = (val) => formatarMoeda(val);
 
+            // Gráfico 1: Fornecedor Principal (Azul Claro)
             const ctx1 = document.getElementById('graficoPrincipal').getContext('2d');
             if (graficoPrincipal) graficoPrincipal.destroy();
             graficoPrincipal = new Chart(ctx1, {
@@ -442,6 +453,7 @@
                 options: getChartOptions(formatCurrency)
             });
 
+            // Gráfico 2: Fornecedor (Azul Mais Escuro)
             const ctx2 = document.getElementById('graficoFornecedor').getContext('2d');
             if (graficoFornecedor) graficoFornecedor.destroy();
             graficoFornecedor = new Chart(ctx2, {
@@ -459,6 +471,7 @@
                 options: getChartOptions(formatCurrency)
             });
 
+            // Tabela com separação correta entre meses
             const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             const mesesOrdenados = [...mesesSelecionados].sort();
 
@@ -475,8 +488,8 @@
             let html = '<thead><tr><th>Fornecedor Principal</th>';
             mesesOrdenados.forEach((m) => {
                 const nome = nomesMeses[parseInt(m)-1] || m;
-                html += `<th class="coluna-valor-mes">Vlr. DEV. ${nome}.</th>`;
-                html += `<th class="coluna-fim-mes">%Vlr. DEV. ${nome}.</th>`;
+                html += `<th>Vlr. DEV. ${nome}.</th>`;
+                html += `<th class="ultima-coluna-mes">%Vlr. DEV. ${nome}.</th>`;
             });
             html += '<th class="coluna-total-header">Total Geral</th>';
             html += '<th class="coluna-total-header">% Total</th></tr></thead><tbody>';
@@ -486,21 +499,21 @@
                 mesesOrdenados.forEach((m) => {
                     const v = dadosPorMesPorPrincipal[principal]?.[m] || 0;
                     const pctMes = totalPorMes[m] > 0 ? (v / totalPorMes[m]) * 100 : 0;
-                    html += `<td class="coluna-valor-mes">R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-                    html += `<td class="coluna-fim-mes">${pctMes.toFixed(2)}%</td>`;
+                    html += `<td>${formatarMoeda(v)}</td>`;
+                    html += `<td class="ultima-coluna-mes">${pctMes.toFixed(2)}%</td>`;
                 });
                 const pctTotal = totalGeral > 0 ? (valorTotal / totalGeral) * 100 : 0;
-                html += `<td class="coluna-total">R$ ${valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                html += `<td class="coluna-total">${formatarMoeda(valorTotal)}</td>`;
                 html += `<td class="coluna-total">${pctTotal.toFixed(2)}%</td></tr>`;
             });
 
             html += `<tr><td>Total Geral</td>`;
             mesesOrdenados.forEach((m) => {
                 const v = totalPorMes[m];
-                html += `<td class="coluna-valor-mes">R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-                html += `<td class="coluna-fim-mes">100%</td>`;
+                html += `<td>${formatarMoeda(v)}</td>`;
+                html += `<td class="ultima-coluna-mes">100%</td>`;
             });
-            html += `<td class="coluna-total">R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+            html += `<td class="coluna-total">${formatarMoeda(totalGeral)}</td>`;
             html += `<td class="coluna-total">100%</td></tr>`;
             html += '</tbody>';
 

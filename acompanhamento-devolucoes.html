@@ -25,250 +25,386 @@
                 <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;">
                     <i class="fas fa-folder-open"></i> Selecionar Planilhas
                 </button>
-                <button onclick="processarArquivos()" class="btn-success" style="padding: 10px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                <button onclick="processarArquivos()" style="padding: 10px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer;">
                     <i class="fas fa-upload"></i> Importar Arquivos
                 </button>
-                <button onclick="substituirTudo()" class="btn-danger" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                <button onclick="substituirTudo()" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer;">
                     <i class="fas fa-trash-alt"></i> Substituir Tudo
                 </button>
             </div>
         </div>
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
         <div id="status-importacao" style="margin-bottom: 15px; color: #1e3a8a; font-weight: 600; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px;"></div>
-        
-        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                <thead>
-                    <tr style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
-                        <th style="padding: 12px;">Data</th>
-                        <th style="padding: 12px;">Fornecedor</th>
-                        <th style="padding: 12px;">Produto</th>
-                        <th style="padding: 12px;">Qtd</th>
-                        <th style="padding: 12px;">Cliente</th>
-                        <th style="padding: 12px;">Motivo</th>
-                        <th style="padding: 12px;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-devolucoes"></tbody>
-            </table>
+
+        <!-- FILTROS -->
+        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <h3 style="color: #1e3a8a; margin-bottom: 15px;"><i class="fas fa-filter"></i> Filtros</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;">
+                
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">Data Inicial</label>
+                    <input type="date" id="filtro_data_inicio" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                </div>
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">Data Final</label>
+                    <input type="date" id="filtro_data_fim" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                </div>
+
+                <div id="filtros-dropdowns" style="display: contents;"></div>
+
+                <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                    <button onclick="limparFiltros()" style="padding: 10px 20px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #1e3a8a; cursor: pointer;"><i class="fas fa-eraser"></i> Limpar Filtros</button>
+                    <button onclick="executarFiltros()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-play"></i> Executar Filtros</button>
+                </div>
+            </div>
         </div>
+
+        <!-- TABELA -->
+        <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; position: relative;">
+            <div style="max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #e0f2fe; border-radius: 12px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead id="thead-tabela" style="position: sticky; top: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; z-index: 10;"></thead>
+                    <tbody id="tabela-devolucoes"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay de carregamento circular -->
+    <div id="overlay-carregamento" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column;">
+        <div style="width: 120px; height: 120px; position: relative;">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e0f2fe" stroke-width="8"/>
+                <circle id="barra-progresso" cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round"/>
+            </svg>
+            <span id="percentual-carregamento" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.4rem; font-weight: 700; color: #1e3a8a;">0%</span>
+        </div>
+        <p style="color: #1e3a8a; font-weight: 500; margin-top: 20px;" id="texto-carregamento">Carregando...</p>
     </div>
 
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
-        let listaArquivos = [];
+        // Definição das colunas (todas as 34)
+        const COLUNAS = [
+            { key: 'codfornec', label: 'COD_FORNEC' },
+            { key: 'fornecedor', label: 'FORNECEDOR' },
+            { key: 'numped', label: 'NUMPED' },
+            { key: 'numnota', label: 'NUMNOTA' },
+            { key: 'chavenfedev', label: 'CHAVE_NFE_DEV' },
+            { key: 'dtent', label: 'DT_ENT' },
+            { key: 'codcli', label: 'COD_CLI' },
+            { key: 'cpfcnpj', label: 'CPF_CNPJ' },
+            { key: 'cliente', label: 'CLIENTE' },
+            { key: 'codrca', label: 'COD_RCA' },
+            { key: 'nomerca', label: 'NOME_RCA' },
+            { key: 'codsupervisor', label: 'COD_SUP' },
+            { key: 'nomesup', label: 'NOME_SUP' },
+            { key: 'numnotaven', label: 'NUMNOTAVEN' },
+            { key: 'chavenfevend', label: 'CHAVE_NFE_VEND' },
+            { key: 'numcarregamento', label: 'NUM_CARREG' },
+            { key: 'codprod', label: 'COD_PROD' },
+            { key: 'descricao', label: 'DESCRICAO' },
+            { key: 'embalagem', label: 'EMBALAGEM' },
+            { key: 'qt', label: 'QT' },
+            { key: 'punit', label: 'P_UNIT' },
+            { key: 'custoultent', label: 'CUSTO_ULT_ENT' },
+            { key: 'vltotal', label: 'VL_TOTAL' },
+            { key: 'nomefunc', label: 'NOME_FUNC' },
+            { key: 'motivo', label: 'MOTIVO' },
+            { key: 'numbonus', label: 'NUM_BONUS' },
+            { key: 'codfuncfecha', label: 'COD_FUNC_FECHA' },
+            { key: 'nome', label: 'NOME' },
+            { key: 'codmotorista', label: 'COD_MOTORISTA' },
+            { key: 'motorista', label: 'MOTORISTA' },
+            { key: 'codrota', label: 'COD_ROTA' },
+            { key: 'rota', label: 'ROTA' },
+            { key: 'veiculo', label: 'VEICULO' },
+            { key: 'placa', label: 'PLACA' }
+        ];
 
-        // ========== SELEÇÃO DE ARQUIVOS ==========
+        const FILTROS_DROPDOWN = [
+            { titulo: 'Fornecedores', coluna: 'fornecedor' },
+            { titulo: 'Código Produto', coluna: 'codprod' },
+            { titulo: 'Descrição', coluna: 'descricao' },
+            { titulo: 'Motivo', coluna: 'motivo' },
+            { titulo: 'Vendedores', coluna: 'nomerca' },
+            { titulo: 'Supervisores', coluna: 'nomesup' },
+            { titulo: 'Motorista', coluna: 'motorista' },
+            { titulo: 'Rota', coluna: 'rota' },
+            { titulo: 'Placa', coluna: 'placa' }
+        ];
+
+        let listaArquivos = [];
+        let todosDados = [];
+        let dadosFiltrados = [];
+        let dadosBanco = [];
+
+        // ========== FUNÇÕES DE CARREGAMENTO (OVERLAY) ==========
+        function mostrarCarregamento(texto = 'Carregando...') {
+            document.getElementById('texto-carregamento').textContent = texto;
+            document.getElementById('overlay-carregamento').style.display = 'flex';
+            atualizarProgresso(0);
+        }
+        function atualizarProgresso(percent) {
+            const barra = document.getElementById('barra-progresso');
+            const texto = document.getElementById('percentual-carregamento');
+            const circumference = 251.2;
+            const offset = circumference - (percent / 100) * circumference;
+            barra.style.strokeDashoffset = offset;
+            texto.textContent = percent + '%';
+        }
+        function ocultarCarregamento() {
+            document.getElementById('overlay-carregamento').style.display = 'none';
+        }
+
+        // ========== GERAÇÃO DE FILTROS DROPDOWN ==========
+        function gerarFiltrosDropdown() {
+            const container = document.getElementById('filtros-dropdowns');
+            container.innerHTML = '';
+            FILTROS_DROPDOWN.forEach((filtro) => {
+                const div = document.createElement('div');
+                div.style.cssText = 'position: relative;';
+                div.innerHTML = `
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #64748b; margin-bottom: 5px; display: block;">${filtro.titulo}</label>
+                    <div style="position: relative;">
+                        <input type="text" id="input_busca_${filtro.coluna}" placeholder="Digite para buscar..." oninput="filtrarOpcoes('${filtro.coluna}')" style="width: 100%; padding: 8px; padding-right: 30px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <span onclick="toggleDropdown('${filtro.coluna}')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #64748b;"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div id="dropdown_${filtro.coluna}" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 50; padding: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <div style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                            <button onclick="selecionarTodos('${filtro.coluna}')" style="background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 0.85rem;">Todos</button>
+                            <button onclick="limparSelecao('${filtro.coluna}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem;">Limpar</button>
+                        </div>
+                        <div id="lista_opcoes_${filtro.coluna}"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // ========== POPULAR OPÇÕES DOS FILTROS ==========
+        function popularOpcoesFiltros() {
+            FILTROS_DROPDOWN.forEach(filtro => {
+                const coluna = filtro.coluna;
+                const valores = [...new Set(dadosBanco.map(item => item[coluna]).filter(v => v && v !== ''))].sort();
+                const lista = document.getElementById(`lista_opcoes_${coluna}`);
+                if (lista) {
+                    lista.innerHTML = '';
+                    valores.forEach(val => {
+                        const label = document.createElement('label');
+                        label.style.cssText = 'display: flex; align-items: center; gap: 5px; padding: 3px 5px; cursor: pointer; font-size: 0.9rem;';
+                        label.innerHTML = `<input type="checkbox" value="${val}" onchange="checkboxChange('${coluna}')"> ${val}`;
+                        lista.appendChild(label);
+                    });
+                }
+            });
+        }
+
+        // ========== FUNÇÕES DOS FILTROS DROPDOWN ==========
+        function toggleDropdown(coluna) {
+            const dropdown = document.getElementById(`dropdown_${coluna}`);
+            if (dropdown) {
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                if (dropdown.style.display === 'block') {
+                    document.querySelectorAll('[id^="dropdown_"]').forEach(d => {
+                        if (d.id !== `dropdown_${coluna}`) d.style.display = 'none';
+                    });
+                }
+            }
+        }
+        function filtrarOpcoes(coluna) {
+            const input = document.getElementById(`input_busca_${coluna}`);
+            const termo = input.value.toLowerCase();
+            const lista = document.getElementById(`lista_opcoes_${coluna}`);
+            const checkboxes = lista.querySelectorAll('label');
+            checkboxes.forEach(label => {
+                const texto = label.textContent.toLowerCase();
+                label.style.display = texto.includes(termo) ? 'flex' : 'none';
+            });
+        }
+        function selecionarTodos(coluna) {
+            const lista = document.getElementById(`lista_opcoes_${coluna}`);
+            lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+        }
+        function limparSelecao(coluna) {
+            const lista = document.getElementById(`lista_opcoes_${coluna}`);
+            lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+        function checkboxChange(coluna) {
+            const lista = document.getElementById(`lista_opcoes_${coluna}`);
+            const checkboxes = lista.querySelectorAll('input[type="checkbox"]:checked');
+            const valores = Array.from(checkboxes).map(cb => cb.value);
+            const input = document.getElementById(`input_busca_${coluna}`);
+            input.value = valores.join(', ');
+        }
+
+        // ========== EXECUTAR FILTROS ==========
+        async function executarFiltros() {
+            mostrarCarregamento('Aplicando filtros...');
+            await new Promise(r => setTimeout(r, 50));
+
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+
+            let filtrados = todosDados.filter(item => {
+                if (dataInicio && item.dtent < dataInicio) return false;
+                if (dataFim && item.dtent > dataFim) return false;
+                for (const filtro of FILTROS_DROPDOWN) {
+                    const coluna = filtro.coluna;
+                    const lista = document.getElementById(`lista_opcoes_${coluna}`);
+                    if (lista) {
+                        const selecionados = Array.from(lista.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                        if (selecionados.length > 0 && !selecionados.includes(item[coluna])) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+            dadosFiltrados = filtrados;
+            await renderizarTabela(dadosFiltrados);
+            ocultarCarregamento();
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtro_data_inicio').value = '';
+            document.getElementById('filtro_data_fim').value = '';
+            FILTROS_DROPDOWN.forEach(filtro => {
+                const coluna = filtro.coluna;
+                const input = document.getElementById(`input_busca_${coluna}`);
+                if (input) input.value = '';
+                const lista = document.getElementById(`lista_opcoes_${coluna}`);
+                if (lista) lista.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            });
+            dadosFiltrados = todosDados;
+            renderizarTabela(dadosFiltrados);
+        }
+
+        // ========== RENDERIZAR TABELA (TODAS AS COLUNAS) ==========
+        function renderizarTabela(dados) {
+            const thead = document.getElementById('thead-tabela');
+            const tbody = document.getElementById('tabela-devolucoes');
+            thead.innerHTML = '<tr>' + COLUNAS.map(col => `<th style="padding: 12px; font-weight: 600; white-space: nowrap;">${col.label}</th>`).join('') + '</tr>';
+            tbody.innerHTML = '';
+            if (dados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${COLUNAS.length}" style="text-align: center; padding: 20px; color: #64748b;">Nenhum registro encontrado</td></tr>`;
+                return;
+            }
+            dados.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
+                tr.innerHTML = COLUNAS.map(col => `<td style="padding: 8px; white-space: nowrap;">${item[col.key] || ''}</td>`).join('');
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ========== IMPORTAÇÃO ==========
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
-            const status = document.getElementById('status-importacao');
-            status.textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos" ou "Substituir Tudo".`;
-            console.log("Arquivos selecionados:", listaArquivos.map(f => f.name));
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos" ou "Substituir Tudo".`;
             event.target.value = '';
         }
-
-        // ========== DETECÇÃO DE CABEÇALHO (procura "CODFORNEC") ==========
         function detectarCabecalho(matriz) {
             for (let i = 0; i < matriz.length; i++) {
                 if (matriz[i] && matriz[i][0] === 'CODFORNEC') return i;
             }
-            return 0; // se não encontrar, assume a primeira linha
+            return 0;
         }
-
-        // ========== MAPEAMENTO POR POSIÇÃO (colunas A até AH) ==========
         function mapearLinha(linha, empresaId) {
             return {
                 empresa_id: empresaId,
-                codfornec: linha[0] || '',
-                fornecedor: linha[1] || '',
-                numped: linha[2] || '',
-                numnota: linha[3] || '',
-                chavenfedev: linha[4] || '',
-                dtent: linha[5] || '',
-                codcli: linha[6] || '',
-                cpfcnpj: linha[7] || '',
-                cliente: linha[8] || '',
-                codrca: linha[9] || '',
-                nomerca: linha[10] || '',
-                codsupervisor: linha[11] || '',
-                nomesup: linha[12] || '',
-                numnotaven: linha[13] || '',
-                chavenfevend: linha[14] || '',
-                numcarregamento: linha[15] || '',
-                codprod: linha[16] || '',
-                descricao: linha[17] || '',
-                embalagem: linha[18] || '',
-                qt: linha[19] || '',
-                punit: linha[20] || '',
-                custoultent: linha[21] || '',
-                vltotal: linha[22] || '',
-                nomefunc: linha[23] || '',
-                motivo: linha[24] || '',
-                numbonus: linha[25] || '',
-                codfuncfecha: linha[26] || '',
-                nome: linha[27] || '',
-                codmotorista: linha[28] || '',
-                motorista: linha[29] || '',
-                codrota: linha[30] || '',
-                rota: linha[31] || '',
-                veiculo: linha[32] || '',
-                placa: linha[33] || ''
+                codfornec: linha[0] || '', fornecedor: linha[1] || '', numped: linha[2] || '', numnota: linha[3] || '',
+                chavenfedev: linha[4] || '', dtent: linha[5] || '', codcli: linha[6] || '', cpfcnpj: linha[7] || '',
+                cliente: linha[8] || '', codrca: linha[9] || '', nomerca: linha[10] || '', codsupervisor: linha[11] || '',
+                nomesup: linha[12] || '', numnotaven: linha[13] || '', chavenfevend: linha[14] || '', numcarregamento: linha[15] || '',
+                codprod: linha[16] || '', descricao: linha[17] || '', embalagem: linha[18] || '', qt: linha[19] || '',
+                punit: linha[20] || '', custoultent: linha[21] || '', vltotal: linha[22] || '', nomefunc: linha[23] || '',
+                motivo: linha[24] || '', numbonus: linha[25] || '', codfuncfecha: linha[26] || '', nome: linha[27] || '',
+                codmotorista: linha[28] || '', motorista: linha[29] || '', codrota: linha[30] || '', rota: linha[31] || '',
+                veiculo: linha[32] || '', placa: linha[33] || ''
             };
         }
-
-        // ========== FUNÇÃO PARA LER E EXTRAIR DADOS ==========
         async function lerArquivos() {
-            if (listaArquivos.length === 0) {
-                alert('Nenhum arquivo selecionado.');
-                return [];
-            }
-            const db = window.supabaseClient;
-            if (!db) { alert('Banco não conectado.'); return []; }
+            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return []; }
             const empresaId = localStorage.getItem('empresaId');
-            const statusEl = document.getElementById('status-importacao');
-
             let todasLinhas = [];
-
             for (let i = 0; i < listaArquivos.length; i++) {
                 const file = listaArquivos[i];
-                statusEl.textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
-                console.log(`Iniciando leitura: ${file.name}`);
-
+                document.getElementById('status-importacao').textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
                 try {
                     const data = await file.arrayBuffer();
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-                    console.log(`Linhas totais na planilha: ${matriz.length}`);
-
                     const linhaCabecalho = detectarCabecalho(matriz);
-                    console.log(`Linha de cabeçalho encontrada na posição: ${linhaCabecalho}`);
-
                     for (let j = linhaCabecalho + 1; j < matriz.length; j++) {
                         const linha = matriz[j];
-                        // Ignora linhas vazias (primeira coluna sem conteúdo)
                         if (linha && linha[0] !== '' && linha[0] !== undefined && linha[0] !== null) {
                             todasLinhas.push(mapearLinha(linha, empresaId));
                         }
                     }
                 } catch (e) {
-                    console.error("Erro ao ler arquivo:", file.name, e);
                     alert('Erro ao ler arquivo ' + file.name + ': ' + e.message);
                     return [];
                 }
             }
-
-            console.log("Total de linhas extraídas:", todasLinhas.length);
             return todasLinhas;
         }
-
-        // ========== IMPORTAR (SEM APAGAR) ==========
         async function processarArquivos() {
             const db = window.supabaseClient;
             if (!db) { alert('Banco não conectado.'); return; }
-            const statusEl = document.getElementById('status-importacao');
-            const empresaId = localStorage.getItem('empresaId');
-
             const linhas = await lerArquivos();
-            if (linhas.length === 0) {
-                statusEl.textContent = 'Nenhuma linha válida foi extraída. Verifique o arquivo.';
-                return;
-            }
-
-            statusEl.textContent = `Importando ${linhas.length} registros...`;
+            if (linhas.length === 0) { document.getElementById('status-importacao').textContent = 'Nenhuma linha válida.'; return; }
+            document.getElementById('status-importacao').textContent = `Importando ${linhas.length} registros...`;
+            mostrarCarregamento('Importando dados...');
             const CHUNK_SIZE = 500;
             for (let i = 0; i < linhas.length; i += CHUNK_SIZE) {
                 const chunk = linhas.slice(i, i + CHUNK_SIZE);
+                atualizarProgresso(Math.round(((i + chunk.length) / linhas.length) * 100));
                 const { error } = await db.from('devolucoes').insert(chunk);
-                if (error) {
-                    console.error("Erro ao inserir lote:", error);
-                    alert('Erro ao inserir dados: ' + error.message);
-                    return;
-                }
+                if (error) { ocultarCarregamento(); alert('Erro ao inserir: ' + error.message); return; }
             }
-
-            statusEl.textContent = `✅ ${linhas.length} registros importados com sucesso!`;
-            console.log("Importação concluída.");
+            ocultarCarregamento();
+            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados com sucesso!`;
             listaArquivos = [];
             await carregarDevolucoes();
         }
-
-        // ========== SUBSTITUIR TUDO (APAGA E IMPORTA) ==========
         async function substituirTudo() {
             const db = window.supabaseClient;
             if (!db) { alert('Banco não conectado.'); return; }
             const empresaId = localStorage.getItem('empresaId');
-            const statusEl = document.getElementById('status-importacao');
-
-            if (!confirm('⚠️ Isso vai apagar TODOS os dados atuais da empresa e importar os arquivos selecionados. Deseja continuar?')) {
-                return;
-            }
-
-            statusEl.textContent = 'Apagando dados antigos...';
-            const { error: delErr } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
-            if (delErr) {
-                console.error("Erro ao apagar:", delErr);
-                alert('Erro ao apagar: ' + delErr.message);
-                return;
-            }
-            console.log("Dados antigos apagados.");
-
-            if (listaArquivos.length > 0) {
-                await processarArquivos();
-            } else {
-                statusEl.textContent = 'Nenhum arquivo selecionado. Dados apagados.';
-                await carregarDevolucoes();
-            }
+            if (!confirm('⚠️ Isso vai apagar TODOS os dados e importar os arquivos selecionados. Deseja continuar?')) return;
+            document.getElementById('status-importacao').textContent = 'Apagando dados antigos...';
+            mostrarCarregamento('Apagando dados antigos...');
+            const { error } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
+            ocultarCarregamento();
+            if (error) { alert('Erro ao apagar: ' + error.message); return; }
+            if (listaArquivos.length > 0) { await processarArquivos(); }
+            else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo. Dados apagados.'; await carregarDevolucoes(); }
         }
 
-        // ========== CARREGAR DEVOLUÇÕES ==========
+        // ========== CARREGAR DADOS ==========
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;
             const empresaId = localStorage.getItem('empresaId');
+            mostrarCarregamento('Carregando dados...');
             const { data, error } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).order('created_at', { ascending: false });
-            if (error) {
-                console.error("Erro ao carregar devoluções:", error);
-                return;
-            }
-            console.log("Devoluções carregadas:", data.length);
-            const tbody = document.getElementById('tabela-devolucoes');
-            tbody.innerHTML = '';
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #64748b;">Nenhuma devolução registrada</td></tr>';
-                return;
-            }
-            data.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.style.borderBottom = '1px solid rgba(59,130,246,0.1)';
-                tr.innerHTML = `
-                    <td style="padding: 10px;">${item.dtent || ''}</td>
-                    <td style="padding: 10px;">${item.fornecedor || ''}</td>
-                    <td style="padding: 10px;">${item.descricao || ''}</td>
-                    <td style="padding: 10px;">${item.qt || ''}</td>
-                    <td style="padding: 10px;">${item.cliente || ''}</td>
-                    <td style="padding: 10px;">${item.motivo || ''}</td>
-                    <td style="padding: 10px;">
-                        <button onclick="excluirDevolucao('${item.id}')" style="background: transparent; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function excluirDevolucao(id) {
-            if (!confirm('Excluir este registro?')) return;
-            const db = window.supabaseClient;
-            const { error } = await db.from('devolucoes').delete().eq('id', id);
-            if (error) { alert('Erro: ' + error.message); return; }
-            carregarDevolucoes();
+            ocultarCarregamento();
+            if (error) { console.error(error); return; }
+            todosDados = data || [];
+            dadosBanco = [...todosDados];
+            dadosFiltrados = [...todosDados];
+            renderizarTabela(dadosFiltrados);
+            popularOpcoesFiltros();
         }
 
         // ========== INICIALIZAÇÃO ==========
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            gerarFiltrosDropdown();
             const wait = setInterval(() => {
                 if (window.supabaseClient) {
                     clearInterval(wait);

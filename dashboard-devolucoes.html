@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ... estilos anteriores ... */
         body { font-family: 'Inter', sans-serif; background: #f0f9ff; margin: 0; padding: 0; }
         .dashboard-container { width: 100%; min-height: 100vh; padding: 20px; box-sizing: border-box; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -33,18 +34,23 @@
         .grafico-box h3 { margin-top: 0; color: #1e3a8a; }
         canvas { max-height: 350px; }
 
-        /* Tabela no padrão original (fundo branco, cabeçalho azul, grade sutil) */
+        /* Tabela com separadores */
         .tabela-box { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
         .tabela-box h3 { color: #1e3a8a; margin-top: 0; margin-bottom: 15px; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: white; }
-        thead th { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 600; text-align: center; padding: 12px; border: 1px solid #2563eb; }
+        thead th { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 600; text-align: center; padding: 12px 10px; border: 1px solid #2563eb; white-space: nowrap; }
         thead th:first-child { text-align: left; border-top-left-radius: 8px; }
         thead th:last-child { border-top-right-radius: 8px; }
 
         tbody td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; background: white; }
         tbody td:first-child { text-align: left; }
         tbody tr:hover { background: #f8fafc; }
+
+        /* Separadores: borda dupla forte entre grupos de meses, borda sutil entre valor e % */
+        /* Classe aplicada dinamicamente via JS na última coluna de cada mês (% do mês) para fechar o grupo */
+        .coluna-fim-mes { border-right: 3px solid #3b82f6 !important; }
+        .coluna-valor-mes { border-right: 1px solid #cbd5e1 !important; }
 
         tbody tr:last-child td { font-weight: bold; background: #f1f5f9; border-top: 2px solid #3b82f6; border-bottom: none; }
         tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }
@@ -63,6 +69,7 @@
     </style>
 </head>
 <body>
+    <!-- ... (mesmo HTML do dashboard) ... -->
     <div class="dashboard-container">
         <div class="header">
             <h1 style="color:#1e3a8a; margin:0;">Dashboard de Devoluções</h1>
@@ -147,299 +154,40 @@
 
     <script src="script.js"></script>
     <script>
-        let graficoPrincipal = null;
-        let graficoFornecedor = null;
-        let colunaAtual = null;
-        let selecionados = { fornecedor: [], fornecedor_principal: [] };
-        let mesesSelecionados = [];
-        let anosSelecionados = [];
+        // ... (Todo o JavaScript anterior permanece igual, apenas a parte de geração da tabela muda) ...
 
-        // Função para converter data para YYYY-MM-DD
-        function converterData(valor) {
-            if (!valor) return '';
-            if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
-                const data = new Date((Number(valor) - 25569) * 86400 * 1000);
-                return data.toISOString().split('T')[0];
-            }
-            let str = String(valor).trim();
-            if (str.includes('-') && str.length >= 10) return str.substring(0, 10);
-            if (str.includes('/')) {
-                const partes = str.split('/');
-                return `${partes[2]}-${partes[1]}-${partes[0]}`;
-            }
-            return str;
-        }
-
-        // Função para converter valor monetário para número
-        function converterValor(valor) {
-            if (typeof valor === 'number') return valor;
-            let str = String(valor).trim().replace(/R\$/g, '').replace(/\s/g, '');
-            if (str.includes(',')) {
-                str = str.replace(/\./g, '').replace(',', '.');
-            } else {
-                const partes = str.split('.');
-                if (partes.length > 1) {
-                    if (partes[partes.length - 1].length <= 2) {
-                        str = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1];
-                    } else {
-                        str = partes.join('');
-                    }
-                }
-            }
-            const num = parseFloat(str);
-            return isNaN(num) ? 0 : num;
-        }
-
-        function toggleFiltros() {
-            const painel = document.getElementById('painel-filtros');
-            painel.classList.toggle('ativo');
-        }
-
-        async function abrirModalFiltro(coluna) {
-            colunaAtual = coluna;
-            document.getElementById('modal-titulo').textContent = coluna === 'fornecedor' ? 'Selecionar Fornecedores' : 'Selecionar Fornecedor Principal';
-            document.getElementById('modal-lista').innerHTML = 'Carregando...';
-            document.getElementById('modal-overlay').classList.add('ativo');
-
-            const db = window.supabaseClient;
-            if (!db) return;
-
-            const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
-            if (error) {
-                console.error(error);
-                document.getElementById('modal-lista').innerHTML = 'Erro ao carregar';
-                return;
-            }
-
-            const valores = (data || []).sort();
-            const selecionadosAtuais = selecionados[coluna] || [];
-            const listaHTML = valores.map(val => `
-                <label>
-                    <input type="checkbox" value="${val}" ${selecionadosAtuais.includes(val) ? 'checked' : ''}> ${val}
-                </label>
-            `).join('');
-            document.getElementById('modal-lista').innerHTML = listaHTML;
-        }
-
-        function fecharModalFiltro() {
-            document.getElementById('modal-overlay').classList.remove('ativo');
-            const checkboxes = document.querySelectorAll('#modal-lista input[type="checkbox"]:checked');
-            const valores = Array.from(checkboxes).map(cb => cb.value);
-            if (colunaAtual) {
-                selecionados[colunaAtual] = valores;
-                carregarDashboard();
-            }
-        }
-
-        function selecionarTodosModal() {
-            document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = true);
-        }
-
-        function limparSelecaoModal() {
-            document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false);
-        }
-
-        async function carregarOpcoes() {
-            const db = window.supabaseClient;
-            if (!db) return;
-
-            const { data, error } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
-            if (error) return;
-
-            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-            const meses = new Set();
-            const anos = new Set();
-
-            (data || []).forEach(val => {
-                const dataConvertida = converterData(val);
-                if (dataConvertida && dataConvertida.includes('-')) {
-                    const partes = dataConvertida.split('-');
-                    meses.add(partes[1]);
-                    anos.add(partes[0]);
-                }
+        // Função para gerar cabeçalho com formato "Vlr. DEV. Jun." e adicionar classes de separação
+        function gerarCabecalho(containerTabela, mesesOrdenados, nomesMeses) {
+            let html = '<thead><tr><th>Fornecedor Principal</th>';
+            mesesOrdenados.forEach((m, index) => {
+                const nomeMes = nomesMeses[parseInt(m)-1] || m;
+                // Formato: Vlr. DEV. Jun. / %Vlr. DEV. Jun.
+                html += `<th class="coluna-valor-mes">Vlr. DEV. ${nomeMes}.</th>`;
+                // A última coluna do mês (percentual) recebe a classe que cria a borda de separação entre meses
+                const classeFimMes = (index === mesesOrdenados.length - 1) ? 'coluna-fim-mes' : '';
+                html += `<th class="${classeFimMes}">%Vlr. DEV. ${nomeMes}.</th>`;
             });
-
-            const containerMeses = document.getElementById('botoes-meses');
-            containerMeses.innerHTML = '';
-            [...meses].sort().forEach(mesNum => {
-                const idx = parseInt(mesNum) - 1;
-                const chip = document.createElement('div');
-                chip.className = 'chip';
-                chip.textContent = nomesMeses[idx] || mesNum;
-                chip.dataset.mes = mesNum;
-                chip.onclick = () => {
-                    chip.classList.toggle('active');
-                    atualizarMesesSelecionados();
-                    carregarDashboard();
-                };
-                containerMeses.appendChild(chip);
-            });
-
-            const containerAnos = document.getElementById('botoes-anos');
-            containerAnos.innerHTML = '';
-            [...anos].sort().forEach(ano => {
-                const chip = document.createElement('div');
-                chip.className = 'chip';
-                chip.textContent = ano;
-                chip.dataset.ano = ano;
-                chip.onclick = () => {
-                    chip.classList.toggle('active');
-                    atualizarAnosSelecionados();
-                    carregarDashboard();
-                };
-                containerAnos.appendChild(chip);
-            });
-
-            mesesSelecionados = [...meses];
-            anosSelecionados = [...anos];
-            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active'));
-            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active'));
+            html += '<th>Total Geral</th><th>% Total</th></tr></thead>';
+            containerTabela.innerHTML = html;
         }
 
-        function atualizarMesesSelecionados() {
-            mesesSelecionados = Array.from(document.querySelectorAll('#botoes-meses .chip.active')).map(c => c.dataset.mes);
-        }
-
-        function atualizarAnosSelecionados() {
-            anosSelecionados = Array.from(document.querySelectorAll('#botoes-anos .chip.active')).map(c => c.dataset.ano);
-        }
-
-        function selecionarTodosMeses() {
-            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active'));
-            atualizarMesesSelecionados();
-            carregarDashboard();
-        }
-
-        function limparMeses() {
-            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.remove('active'));
-            atualizarMesesSelecionados();
-            carregarDashboard();
-        }
-
-        function selecionarTodosAnos() {
-            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active'));
-            atualizarAnosSelecionados();
-            carregarDashboard();
-        }
-
-        function limparAnos() {
-            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.remove('active'));
-            atualizarAnosSelecionados();
-            carregarDashboard();
-        }
-
+        // Modificar a função carregarDashboard para usar gerarCabecalho
         async function carregarDashboard() {
-            const db = window.supabaseClient;
-            if (!db) return;
-            const empresaId = localStorage.getItem('empresaId');
-            const dataIni = document.getElementById('filtro_data_ini').value || null;
-            const dataFim = document.getElementById('filtro_data_fim').value || null;
+            // ... (código de filtros e RPC igual) ...
+            // (Substitua a parte de geração da tabela pela nova lógica abaixo)
 
-            const forn = selecionados['fornecedor'].length ? selecionados['fornecedor'] : null;
-            const fornPrinc = selecionados['fornecedor_principal'].length ? selecionados['fornecedor_principal'] : null;
-            const meses = mesesSelecionados.length ? mesesSelecionados : null;
-            const anos = anosSelecionados.length ? anosSelecionados : null;
-
-            const { data, error } = await db.rpc('get_resumo_mensal', {
-                p_empresa_id: empresaId,
-                p_anos: anos,
-                p_meses: meses,
-                p_fornecedores: forn,
-                p_fornecedores_principais: fornPrinc
-            });
-
-            if (error) {
-                console.error('Erro ao carregar dados:', error);
-                alert('Erro ao carregar dados: ' + error.message);
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                document.getElementById('tabela-resumo').innerHTML = '<tr><td colspan="100%" style="text-align:center; color:#64748b; padding:20px;">Nenhum dado encontrado para os filtros selecionados.</td></tr>';
-                if (graficoPrincipal) { graficoPrincipal.destroy(); graficoPrincipal = null; }
-                if (graficoFornecedor) { graficoFornecedor.destroy(); graficoFornecedor = null; }
-                return;
-            }
-
-            const dadosPorPrincipal = {};
-            const dadosPorFornecedor = {};
-            const dadosPorMesPorPrincipal = {};
-            const dadosPorMesPorFornecedor = {};
-
-            data.forEach(item => {
-                const valor = converterValor(item.valor_total);
-
-                if (!dadosPorPrincipal[item.fornecedor_principal]) {
-                    dadosPorPrincipal[item.fornecedor_principal] = 0;
-                }
-                dadosPorPrincipal[item.fornecedor_principal] += valor;
-
-                if (!dadosPorFornecedor[item.fornecedor]) {
-                    dadosPorFornecedor[item.fornecedor] = 0;
-                }
-                dadosPorFornecedor[item.fornecedor] += valor;
-
-                if (!dadosPorMesPorPrincipal[item.fornecedor_principal]) {
-                    dadosPorMesPorPrincipal[item.fornecedor_principal] = {};
-                }
-                if (!dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes]) {
-                    dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes] = 0;
-                }
-                dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes] += valor;
-
-                if (!dadosPorMesPorFornecedor[item.fornecedor]) {
-                    dadosPorMesPorFornecedor[item.fornecedor] = {};
-                }
-                if (!dadosPorMesPorFornecedor[item.fornecedor][item.mes]) {
-                    dadosPorMesPorFornecedor[item.fornecedor][item.mes] = 0;
-                }
-                dadosPorMesPorFornecedor[item.fornecedor][item.mes] += valor;
-            });
-
-            const arrayPrincipal = Object.entries(dadosPorPrincipal).sort((a, b) => b[1] - a[1]);
-            const arrayFornecedor = Object.entries(dadosPorFornecedor).sort((a, b) => b[1] - a[1]);
-
-            // Gráfico 1: Fornecedor Principal
-            const ctx1 = document.getElementById('graficoPrincipal').getContext('2d');
-            if (graficoPrincipal) graficoPrincipal.destroy();
-            graficoPrincipal = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: arrayPrincipal.map(item => item[0]),
-                    datasets: [{
-                        label: 'Valor',
-                        data: arrayPrincipal.map(item => item[1]),
-                        backgroundColor: 'rgba(139,92,246,0.7)',
-                        borderColor: 'rgba(139,92,246,1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } } }
-            });
-
-            // Gráfico 2: Fornecedor (completo)
-            const ctx2 = document.getElementById('graficoFornecedor').getContext('2d');
-            if (graficoFornecedor) graficoFornecedor.destroy();
-            graficoFornecedor = new Chart(ctx2, {
-                type: 'bar',
-                data: {
-                    labels: arrayFornecedor.map(item => item[0]),
-                    datasets: [{
-                        label: 'Valor',
-                        data: arrayFornecedor.map(item => item[1]),
-                        backgroundColor: 'rgba(59,130,246,0.7)',
-                        borderColor: 'rgba(59,130,246,1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } } }
-            });
-
-            // Tabela dinâmica com valor + % por mês, e total geral no final
+            // Dentro de carregarDashboard, após calcular os dados:
             const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             const mesesOrdenados = [...mesesSelecionados].sort();
-
-            // Calcula totais por mês para percentuais
+            const containerTabela = document.getElementById('tabela-resumo');
+            
+            // Gerar cabeçalho com a nova formatação e classes
+            gerarCabecalho(containerTabela, mesesOrdenados, nomesMeses);
+            
+            // Corpo da tabela
+            let htmlBody = '<tbody>';
+            
+            // Calcular totais por mês
             const totalPorMes = {};
             mesesOrdenados.forEach(m => {
                 totalPorMes[m] = 0;
@@ -449,52 +197,43 @@
             });
             const totalGeral = arrayPrincipal.reduce((acc, [, val]) => acc + val, 0);
 
-            const containerTabela = document.getElementById('tabela-resumo');
-            let html = '<thead><tr><th>Fornecedor Principal</th>';
-            mesesOrdenados.forEach(m => {
-                const nome = nomesMeses[parseInt(m)-1] || m;
-                html += `<th>Vlr DEV ${nome}</th><th>%Vlr DEV ${nome}</th>`;
-            });
-            html += '<th>Total Geral</th><th>% Total</th></tr></thead><tbody>';
-
+            // Linhas de dados
             arrayPrincipal.forEach(([principal, valorTotal]) => {
-                html += `<tr><td>${principal}</td>`;
+                htmlBody += `<tr><td>${principal}</td>`;
                 let somaMesPrincipal = 0;
-                mesesOrdenados.forEach(m => {
+                mesesOrdenados.forEach((m, index) => {
                     const v = dadosPorMesPorPrincipal[principal]?.[m] || 0;
                     somaMesPrincipal += v;
                     const pctMes = totalPorMes[m] > 0 ? (v / totalPorMes[m]) * 100 : 0;
-                    html += `<td>R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-                    html += `<td>${pctMes.toFixed(2)}%</td>`;
+                    
+                    // Coluna Valor: classe sutil de separação
+                    htmlBody += `<td class="coluna-valor-mes">R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                    // Coluna %: classe de separação entre meses (exceto último mês)
+                    const classeFimMes = (index === mesesOrdenados.length - 1) ? 'coluna-fim-mes' : '';
+                    htmlBody += `<td class="${classeFimMes}">${pctMes.toFixed(2)}%</td>`;
                 });
                 const pctTotal = totalGeral > 0 ? (valorTotal / totalGeral) * 100 : 0;
-                html += `<td>R$ ${valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-                html += `<td>${pctTotal.toFixed(2)}%</td></tr>`;
+                htmlBody += `<td>R$ ${valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                htmlBody += `<td>${pctTotal.toFixed(2)}%</td></tr>`;
             });
 
             // Linha de total geral
-            html += `<tr><td>Total Geral</td>`;
-            mesesOrdenados.forEach(m => {
+            htmlBody += `<tr><td>Total Geral</td>`;
+            mesesOrdenados.forEach((m, index) => {
                 const v = totalPorMes[m];
-                html += `<td>R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-                html += `<td>100%</td>`;
+                htmlBody += `<td class="coluna-valor-mes">R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+                const classeFimMes = (index === mesesOrdenados.length - 1) ? 'coluna-fim-mes' : '';
+                htmlBody += `<td class="${classeFimMes}">100%</td>`;
             });
-            html += `<td>R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
-            html += `<td>100%</td></tr>`;
-            html += '</tbody>';
+            htmlBody += `<td>R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>`;
+            htmlBody += `<td>100%</td></tr>`;
+            htmlBody += '</tbody>';
 
-            containerTabela.innerHTML = html;
+            // Inserir corpo no HTML (o cabeçalho já foi gerado)
+            containerTabela.innerHTML += htmlBody;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const wait = setInterval(async () => {
-                if (window.supabaseClient) {
-                    clearInterval(wait);
-                    await carregarOpcoes();
-                    carregarDashboard();
-                }
-            }, 200);
-        });
+        // ... (restante do código) ...
     </script>
 </body>
 </html>

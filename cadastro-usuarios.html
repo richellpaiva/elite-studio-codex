@@ -22,7 +22,7 @@
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
 
-        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1100px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1000px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1;">
 
             <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 10px;">Cadastro de Usuários</h2>
             <p style="color: #64748b; text-align: center; margin-bottom: 30px;">Gerencie os usuários e vínculos com as empresas</p>
@@ -41,7 +41,6 @@
                             <th style="padding: 15px; font-weight: 600; width: 80px;">Foto</th>
                             <th style="padding: 15px; font-weight: 600;">Nome</th>
                             <th style="padding: 15px; font-weight: 600;">Login</th>
-                            <th style="padding: 15px; font-weight: 600;">CPF</th>
                             <th style="padding: 15px; font-weight: 600;">Empresa</th>
                             <th style="padding: 15px; font-weight: 600; width: 120px; text-align: center;">Ações</th>
                         </tr>
@@ -87,9 +86,15 @@
                         </select>
                     </div>
 
+                    <!-- Data de Nascimento -->
+                    <div>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Data de Nascimento</label>
+                        <input type="date" id="data_nascimento" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
+                    </div>
+
                     <!-- CPF -->
                     <div>
-                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">CPF *</label>
+                        <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">CPF (opcional)</label>
                         <input type="text" id="cpf" placeholder="000.000.000-00" oninput="mascaraCPF(this)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
                     </div>
 
@@ -167,7 +172,7 @@
                     <!-- Senha -->
                     <div>
                         <label style="color: #64748b; font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">Senha *</label>
-                        <input type="password" id="senha" placeholder="Mínimo 6 caracteres" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
+                        <input type="password" id="senha" placeholder="Mínimo 3 caracteres" style="width: 100%; background: #e0f2fe; border: 1px solid #bae6fd; color: #1e3a8a; padding: 12px; border-radius: 8px; outline: none;">
                     </div>
                 </div>
 
@@ -309,13 +314,6 @@
                 tdLogin.textContent = user.login;
                 tr.appendChild(tdLogin);
 
-                // CPF
-                const tdCpf = document.createElement('td');
-                tdCpf.style.padding = '10px';
-                tdCpf.style.color = '#64748b';
-                tdCpf.textContent = user.cpf || '';
-                tr.appendChild(tdCpf);
-
                 // Empresa (busca nome na lista de empresas)
                 const tdEmpresa = document.createElement('td');
                 tdEmpresa.style.padding = '10px';
@@ -349,6 +347,7 @@
             document.getElementById('modal-titulo').textContent = user ? 'Editar Usuário' : 'Adicionar Usuário';
 
             document.getElementById('nome').value = user ? user.nome : '';
+            document.getElementById('data_nascimento').value = user && user.data_nascimento ? user.data_nascimento.substring(0, 10) : '';
             document.getElementById('cpf').value = user ? user.cpf || '' : '';
             document.getElementById('rg').value = user ? user.rg || '' : '';
             document.getElementById('cep').value = user ? user.cep || '' : '';
@@ -385,14 +384,18 @@
         // Salvar
         async function salvarRegistro() {
             const nome = document.getElementById('nome').value.trim();
-            const cpf = document.getElementById('cpf').value.trim();
             const login = document.getElementById('login').value.trim();
             const senha = document.getElementById('senha').value.trim();
             const empresa_id = document.getElementById('empresa_id').value;
 
-            if (!nome || !cpf || !login || !senha) { alert('Preencha os campos obrigatórios: Nome, CPF, Login e Senha.'); return; }
-            if (senha.length < 6) { alert('A senha deve ter no mínimo 6 caracteres.'); return; }
+            // Obrigatórios: Nome, Login e Senha (CPF NÃO é mais obrigatório)
+            if (!nome || !login || !senha) { alert('Preencha os campos obrigatórios: Nome, Login e Senha.'); return; }
+            if (senha.length < 3) { alert('A senha deve ter no mínimo 3 caracteres.'); return; }
 
+            // Data de nascimento (se vazia, envia null)
+            const data_nascimento = document.getElementById('data_nascimento').value || null;
+            
+            const cpf = document.getElementById('cpf').value.trim();
             const rg = document.getElementById('rg').value.trim();
             const endereco = document.getElementById('endereco').value.trim();
             const numero = document.getElementById('numero').value.trim();
@@ -404,7 +407,7 @@
             const estado = document.getElementById('estado').value;
             const foto = document.getElementById('preview-foto').src || '';
 
-            const novoRegistro = { nome, cpf, rg, endereco, numero, complemento, cep, foto, telefone, email, cidade, estado, login, senha, empresa_id: empresa_id || null };
+            const novoRegistro = { nome, data_nascimento, cpf, rg, endereco, numero, complemento, cep, foto, telefone, email, cidade, estado, login, senha, empresa_id: empresa_id || null };
 
             if (!dbClient) { alert('Cliente Supabase não configurado.'); return; }
 

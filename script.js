@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_IQ3w71GgWpu18YA4mZWL3Q_3tJ59ATO';
 
 let supabaseClient = null;
 
-// Cria o cliente IMEDIATAMENTE (sem esperar DOMContentLoaded)
+// Cria o cliente IMEDIATAMENTE assim que a biblioteca carrega
 if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabaseClient = supabaseClient;
@@ -37,7 +37,6 @@ function logout() {
 
 async function handleLogin(loginInput, passInput) {
     if (!supabaseClient) {
-        // Se o cliente não estiver pronto, aguarda um pouco
         await new Promise(r => setTimeout(r, 300));
         if (!supabaseClient) {
             alert("Erro: Banco de dados não conectado. Verifique sua internet.");
@@ -66,6 +65,7 @@ async function handleLogin(loginInput, passInput) {
         localStorage.setItem('userId', user.id);
         localStorage.setItem('empresaId', user.empresa_id || '');
 
+        // Redireciona para o painel da empresa se tiver vínculo, senão vai para o painel administrativo
         if (user.empresa_id) {
             window.location.href = 'painel-empresa.html';
         } else {
@@ -77,7 +77,43 @@ async function handleLogin(loginInput, passInput) {
 }
 
 // ==============================================
-// 3. COLUNAS DA TABELA 1707
+// 3. FUNÇÕES GLOBAIS PARA CRUD DE EMPRESAS
+// ==============================================
+async function salvarEmpresa(dados) {
+    if (!supabaseClient) throw new Error("Cliente Supabase não configurado.");
+    const { data, error } = await supabaseClient.from('empresas').insert([dados]);
+    if (error) throw error;
+    return data;
+}
+
+async function listarEmpresas() {
+    if (!supabaseClient) return [];
+    const { data, error } = await supabaseClient.from('empresas').select('*');
+    if (error) throw error;
+    return data || [];
+}
+
+async function excluirEmpresa(id) {
+    if (!supabaseClient) throw new Error("Cliente Supabase não configurado.");
+    const { error } = await supabaseClient.from('empresas').delete().eq('id', id);
+    if (error) throw error;
+}
+
+async function atualizarEmpresa(id, dados) {
+    if (!supabaseClient) throw new Error("Cliente Supabase não configurado.");
+    const { data, error } = await supabaseClient.from('empresas').update(dados).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
+// Exporta para uso global
+window.salvarEmpresa = salvarEmpresa;
+window.listarEmpresas = listarEmpresas;
+window.excluirEmpresa = excluirEmpresa;
+window.atualizarEmpresa = atualizarEmpresa;
+
+// ==============================================
+// 4. COLUNAS DA TABELA 1707
 // ==============================================
 const COLUMNS = [
     { key: 'cod_produto',      label: 'COD_PRODUTO',       tipo: 'texto' },
@@ -98,7 +134,7 @@ const COLUMNS = [
 ];
 
 // ==============================================
-// 4. FUNÇÕES DE BANCO (RELATÓRIO 1707)
+// 5. FUNÇÕES DE BANCO (RELATÓRIO 1707) - Importação
 // ==============================================
 let currentParsedData = [];
 let currentDisplayData = [];
@@ -137,10 +173,8 @@ async function saveToDatabase(data) {
     }
 }
 
-// ... (mantenha o restante das funções de importação e filtros se já estiverem funcionando)
-
 // ==============================================
-// EXPORTA FUNÇÕES GLOBAIS
+// 6. EXPORTA FUNÇÕES PARA USO GLOBAL
 // ==============================================
 window.salvarEmpresa = salvarEmpresa;
 window.listarEmpresas = listarEmpresas;

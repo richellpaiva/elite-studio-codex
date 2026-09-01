@@ -14,20 +14,27 @@
         if (localStorage.getItem('isLoggedIn') !== 'true') window.location.href = 'index.html';
     </script>
 
-    <!-- Container da sidebar -->
+    <!-- Sidebar -->
     <div id="sidebar-container"></div>
 
     <!-- Conteúdo principal -->
     <div class="main-content-empresa" style="padding: 40px; transition: margin-left 0.3s ease;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
             <h1 style="color: #1e3a8a;">Acompanhamento de Devoluções</h1>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;"><i class="fas fa-upload"></i> Importar Planilhas</button>
-                <button onclick="atualizarBanco()" class="btn-outline" style="padding: 10px 20px;"><i class="fas fa-sync-alt"></i> Atualizar Banco</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="document.getElementById('fileInput').click()" class="btn-primary" style="padding: 10px 20px;">
+                    <i class="fas fa-folder-open"></i> Selecionar Planilhas
+                </button>
+                <button onclick="processarArquivos()" class="btn-success" style="padding: 10px 20px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    <i class="fas fa-upload"></i> Importar Arquivos
+                </button>
+                <button onclick="substituirTudo()" class="btn-danger" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    <i class="fas fa-trash-alt"></i> Substituir Tudo
+                </button>
             </div>
         </div>
         <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
-        <div id="status-importacao" style="margin-bottom: 15px; color: #64748b; font-weight: 600;"></div>
+        <div id="status-importacao" style="margin-bottom: 15px; color: #1e3a8a; font-weight: 600; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px;"></div>
         
         <div style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -50,29 +57,27 @@
     <script src="script.js"></script>
     <script src="sidebar-empresa.js"></script>
     <script>
-        // ========== LÓGICA DE DEVOLUÇÕES ==========
         let listaArquivos = [];
 
+        // ========== SELEÇÃO DE ARQUIVOS ==========
         function adicionarArquivos(event) {
             const files = Array.from(event.target.files);
             listaArquivos = listaArquivos.concat(files);
             const status = document.getElementById('status-importacao');
-            status.textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Atualizar Banco" para processar.`;
+            status.textContent = `${listaArquivos.length} arquivo(s) selecionado(s). Clique em "Importar Arquivos" ou "Substituir Tudo".`;
             console.log("Arquivos selecionados:", listaArquivos.map(f => f.name));
             event.target.value = '';
         }
 
-        // Função para detectar a linha de cabeçalho em uma matriz de dados
+        // ========== DETECÇÃO DE CABEÇALHO (procura "CODFORNEC") ==========
         function detectarCabecalho(matriz) {
-            // Procura uma linha que contenha "CODFORNEC" ou "FORNECEDOR" na primeira coluna
             for (let i = 0; i < matriz.length; i++) {
                 if (matriz[i] && matriz[i][0] === 'CODFORNEC') return i;
             }
-            // Se não encontrar, assume a primeira linha
-            return 0;
+            return 0; // se não encontrar, assume a primeira linha
         }
 
-        // Função para mapear uma linha de dados com base nos índices das colunas
+        // ========== MAPEAMENTO POR POSIÇÃO (colunas A até AH) ==========
         function mapearLinha(linha, empresaId) {
             return {
                 empresa_id: empresaId,
@@ -113,35 +118,38 @@
             };
         }
 
-        async function processarArquivos() {
-            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return; }
+        // ========== FUNÇÃO PARA LER E EXTRAIR DADOS ==========
+        async function lerArquivos() {
+            if (listaArquivos.length === 0) {
+                alert('Nenhum arquivo selecionado.');
+                return [];
+            }
             const db = window.supabaseClient;
-            if (!db) { alert('Banco não conectado.'); return; }
+            if (!db) { alert('Banco não conectado.'); return []; }
             const empresaId = localStorage.getItem('empresaId');
             const statusEl = document.getElementById('status-importacao');
-            
+
             let todasLinhas = [];
+
             for (let i = 0; i < listaArquivos.length; i++) {
                 const file = listaArquivos[i];
                 statusEl.textContent = `Processando arquivo ${i+1}/${listaArquivos.length}: ${file.name}`;
-                console.log(`Iniciando processamento do arquivo: ${file.name}`);
+                console.log(`Iniciando leitura: ${file.name}`);
+
                 try {
                     const data = await file.arrayBuffer();
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    // Converte para matriz (array de arrays) para ter controle total
                     const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                    console.log(`Arquivo ${file.name}: ${matriz.length} linhas lidas.`);
-                    
-                    // Detecta a linha onde estão os cabeçalhos
+
+                    console.log(`Linhas totais na planilha: ${matriz.length}`);
+
                     const linhaCabecalho = detectarCabecalho(matriz);
-                    console.log(`Linha de cabeçalho detectada: ${linhaCabecalho}`);
-                    
-                    // Pega todas as linhas de dados após a linha de cabeçalho
+                    console.log(`Linha de cabeçalho encontrada na posição: ${linhaCabecalho}`);
+
                     for (let j = linhaCabecalho + 1; j < matriz.length; j++) {
                         const linha = matriz[j];
-                        // Verifica se a linha não está vazia (primeira coluna tem algo)
+                        // Ignora linhas vazias (primeira coluna sem conteúdo)
                         if (linha && linha[0] !== '' && linha[0] !== undefined && linha[0] !== null) {
                             todasLinhas.push(mapearLinha(linha, empresaId));
                         }
@@ -149,21 +157,31 @@
                 } catch (e) {
                     console.error("Erro ao ler arquivo:", file.name, e);
                     alert('Erro ao ler arquivo ' + file.name + ': ' + e.message);
-                    return;
+                    return [];
                 }
             }
 
-            console.log("Total de linhas a inserir:", todasLinhas.length);
-            if (todasLinhas.length === 0) {
-                statusEl.textContent = 'Nenhuma linha válida encontrada nos arquivos. Verifique se a planilha tem cabeçalhos na primeira linha ou se os dados estão preenchidos.';
+            console.log("Total de linhas extraídas:", todasLinhas.length);
+            return todasLinhas;
+        }
+
+        // ========== IMPORTAR (SEM APAGAR) ==========
+        async function processarArquivos() {
+            const db = window.supabaseClient;
+            if (!db) { alert('Banco não conectado.'); return; }
+            const statusEl = document.getElementById('status-importacao');
+            const empresaId = localStorage.getItem('empresaId');
+
+            const linhas = await lerArquivos();
+            if (linhas.length === 0) {
+                statusEl.textContent = 'Nenhuma linha válida foi extraída. Verifique o arquivo.';
                 return;
             }
 
-            statusEl.textContent = `Inserindo ${todasLinhas.length} registros no banco...`;
+            statusEl.textContent = `Importando ${linhas.length} registros...`;
             const CHUNK_SIZE = 500;
-            for (let i = 0; i < todasLinhas.length; i += CHUNK_SIZE) {
-                const chunk = todasLinhas.slice(i, i + CHUNK_SIZE);
-                console.log(`Inserindo lote ${Math.floor(i/CHUNK_SIZE)+1} com ${chunk.length} registros`);
+            for (let i = 0; i < linhas.length; i += CHUNK_SIZE) {
+                const chunk = linhas.slice(i, i + CHUNK_SIZE);
                 const { error } = await db.from('devolucoes').insert(chunk);
                 if (error) {
                     console.error("Erro ao inserir lote:", error);
@@ -171,23 +189,25 @@
                     return;
                 }
             }
-            statusEl.textContent = 'Importação concluída com sucesso!';
-            console.log("Importação finalizada com sucesso.");
+
+            statusEl.textContent = `✅ ${linhas.length} registros importados com sucesso!`;
+            console.log("Importação concluída.");
             listaArquivos = [];
             await carregarDevolucoes();
         }
 
-        async function atualizarBanco() {
+        // ========== SUBSTITUIR TUDO (APAGA E IMPORTA) ==========
+        async function substituirTudo() {
             const db = window.supabaseClient;
-            if (!db) return;
+            if (!db) { alert('Banco não conectado.'); return; }
             const empresaId = localStorage.getItem('empresaId');
-            
-            // Confirmação antes de apagar
-            if (!confirm('Isso vai apagar TODOS os dados atuais e importar os arquivos selecionados. Deseja continuar?')) return;
-
             const statusEl = document.getElementById('status-importacao');
+
+            if (!confirm('⚠️ Isso vai apagar TODOS os dados atuais da empresa e importar os arquivos selecionados. Deseja continuar?')) {
+                return;
+            }
+
             statusEl.textContent = 'Apagando dados antigos...';
-            console.log("Apagando dados antigos para empresa:", empresaId);
             const { error: delErr } = await db.from('devolucoes').delete().eq('empresa_id', empresaId);
             if (delErr) {
                 console.error("Erro ao apagar:", delErr);
@@ -200,11 +220,11 @@
                 await processarArquivos();
             } else {
                 statusEl.textContent = 'Nenhum arquivo selecionado. Dados apagados.';
-                console.log("Nenhum arquivo para importar.");
                 await carregarDevolucoes();
             }
         }
 
+        // ========== CARREGAR DEVOLUÇÕES ==========
         async function carregarDevolucoes() {
             const db = window.supabaseClient;
             if (!db) return;
@@ -247,6 +267,7 @@
             carregarDevolucoes();
         }
 
+        // ========== INICIALIZAÇÃO ==========
         document.addEventListener('DOMContentLoaded', () => {
             const wait = setInterval(() => {
                 if (window.supabaseClient) {

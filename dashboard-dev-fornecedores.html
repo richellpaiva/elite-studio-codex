@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Devoluções por Fornecedores</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* ===== PADRÃO VISUAL (Blue Sky Glass) ===== */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.2), transparent 50%),
+                        radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.2), transparent 50%),
+                        linear-gradient(135deg, #ffffff, #f0f9ff, #e0f2fe);
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .neon-glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.5;
+            z-index: 0;
+            animation: floatLight 10s infinite alternate ease-in-out;
+        }
+        .neon-1 { background: rgba(59, 130, 246, 0.4); top: -150px; left: -150px; box-shadow: 0 0 100px rgba(59, 130, 246, 0.3); }
+        .neon-2 { background: rgba(139, 92, 246, 0.3); bottom: -150px; right: -150px; animation-delay: 5s; box-shadow: 0 0 100px rgba(139, 92, 246, 0.3); }
+
+        @keyframes floatLight {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, -50px) scale(1.2); }
+        }
+
+        .dash-content {
+            position: relative;
+            z-index: 10;
+            margin-left: 280px;
+            padding: 40px;
+            transition: margin-left 0.3s ease, width 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        .header h1 { color: #1e3a8a; margin: 0; font-weight: 800; }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-outline { background: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.6); color: #1e3a8a; backdrop-filter: blur(10px); }
+        .btn-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+
+        .painel-filtros {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .painel-filtros.ativo { display: block; }
+
+        .campo-filtro label { display: block; color: #475569; font-weight: 600; margin-bottom: 5px; }
+        .campo-filtro input {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 10px;
+            padding: 10px;
+            color: #1e3a8a;
+            outline: none;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .campo-filtro input:focus { border-color: #60a5fa; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+
+        .botoes-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .chip {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 8px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            user-select: none;
+            transition: all 0.2s;
+            color: #1e3a8a;
+        }
+        .chip.active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .acoes-chips { margin-top: 10px; }
+        .acoes-chips .btn { padding: 5px 10px; font-size: 0.85rem; }
+
+        .graficos-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .grafico-box {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            height: 450px;
+            position: relative;
+        }
+        .grafico-box h3 { color: #1e3a8a; margin-top: 0; text-align: center; }
+        canvas { width: 100% !important; height: 380px !important; display: block; }
+
+        .tabela-box {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .tabela-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .tabela-header h3 { color: #1e3a8a; margin: 0; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: transparent; color: #1e3a8a; }
+        thead th {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        thead th:hover { background: #2563eb; }
+        tbody td { padding: 12px; border: 1px solid rgba(59, 130, 246, 0.15); text-align: center; color: #1e3a8a; }
+        tbody td:first-child { text-align: left; }
+
+        td.coluna-total {
+            background-color: #dbeafe !important;
+            font-weight: 600;
+        }
+        th.coluna-total { background: #1e40af !important; }
+
+        tbody tr:last-child td {
+            font-weight: 700;
+            background: #bfdbfe;
+            border-top: 2px solid #3b82f6;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(30, 58, 138, 0.4);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.ativo { display: flex; }
+        .modal-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 30px;
+            max-width: 600px;
+            width: 95%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 60px rgba(30, 58, 138, 0.3), 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e0f2fe; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; color: #1e3a8a; }
+        .modal-lista { max-height: 300px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #e0f2fe; border-radius: 8px; padding: 10px; }
+        .modal-lista label { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 0.95rem; color: #1e3a8a; line-height: 1.4; }
+        .modal-lista label:hover { background: #e0f2fe; }
+        .modal-lista input[type="checkbox"] { width: 24px; height: 24px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: #3b82f6; }
+        .modal-botoes { display: flex; justify-content: flex-end; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="neon-glow neon-1"></div>
+    <div class="neon-glow neon-2"></div>
+    <div id="sidebar-container"></div>
+
+    <div class="dash-content">
+        <div class="header">
+            <h1>Dashboard Devoluções por Fornecedores</h1>
+            <a href="dashboard-dev-menu.html" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <button class="btn btn-primary" onclick="toggleFiltros()"><i class="fas fa-filter"></i> Mostrar/Ocultar Filtros</button>
+        </div>
+
+        <div id="painel-filtros" class="painel-filtros">
+            <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
+                <div class="campo-filtro">
+                    <label>Data Inicial</label>
+                    <input type="date" id="filtro_data_ini" onchange="carregarDashboard()">
+                </div>
+                <div class="campo-filtro">
+                    <label>Data Final</label>
+                    <input type="date" id="filtro_data_fim" onchange="carregarDashboard()">
+                </div>
+                <button class="btn btn-outline" onclick="abrirModalFiltro('fornecedor')"><i class="fas fa-truck"></i> Fornecedores</button>
+                <button class="btn btn-outline" onclick="abrirModalFiltro('fornecedor_principal')"><i class="fas fa-building"></i> Fornecedores Principais</button>
+                <button class="btn btn-primary" onclick="carregarDashboard()"><i class="fas fa-play"></i> Aplicar</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <label style="font-weight: 700; color: #1e3a8a; display: block; margin-bottom: 10px;">Meses:</label>
+                    <div id="botoes-meses" class="botoes-chips"></div>
+                    <div class="acoes-chips">
+                        <button onclick="selecionarTodosMeses()" class="btn btn-outline">Todos</button>
+                        <button onclick="limparMeses()" class="btn btn-outline">Limpar</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-weight: 700; color: #1e3a8a; display: block; margin-bottom: 10px;">Anos:</label>
+                    <div id="botoes-anos" class="botoes-chips"></div>
+                    <div class="acoes-chips">
+                        <button onclick="selecionarTodosAnos()" class="btn btn-outline">Todos</button>
+                        <button onclick="limparAnos()" class="btn btn-outline">Limpar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="graficos-container">
+            <div class="grafico-box">
+                <h3>Devoluções por Fornecedores Principais</h3>
+                <canvas id="graficoPrincipal"></canvas>
+            </div>
+            <div class="grafico-box">
+                <h3>Devoluções por Fornecedores</h3>
+                <canvas id="graficoFornecedor"></canvas>
+            </div>
+        </div>
+
+        <div class="graficos-container">
+            <div class="grafico-box">
+                <h3>Devoluções por Fornecedores Principais - Mês</h3>
+                <canvas id="graficoBarrasMes"></canvas>
+            </div>
+            <div class="grafico-box">
+                <h3>Devoluções por Fornecedores Principais - Ano</h3>
+                <canvas id="graficoRoscaAno"></canvas>
+            </div>
+        </div>
+
+        <div class="tabela-box">
+            <div class="tabela-header">
+                <h3>Resumo por Fornecedores Principais e Mês</h3>
+                <button class="btn btn-cyan" onclick="exportarTabelaExcel()"><i class="fas fa-file-excel"></i> Baixar Excel</button>
+            </div>
+            <table id="tabela-resumo"></table>
+        </div>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-titulo">Selecionar Fornecedores Principais</h3>
+                <button onclick="fecharModalFiltro()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <input type="text" id="modal-busca" placeholder="Digite para buscar..." oninput="filtrarOpcoesModal()" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <div class="modal-lista" id="modal-lista"></div>
+            <div class="modal-botoes">
+                <button onclick="selecionarTodosModal()" class="btn btn-outline">Todos</button>
+                <button onclick="limparSelecaoModal()" class="btn btn-outline">Limpar</button>
+                <button onclick="fecharModalFiltro()" class="btn btn-primary">Concluir</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="sidebar-empresa.js"></script>
+    <script>
+        Chart.register(ChartDataLabels);
+
+        let graficoPrincipal = null;
+        let graficoFornecedor = null;
+        let graficoBarrasMes = null;
+        let graficoRoscaAno = null;
+        let colunaAtual = null;
+        let selecionados = { fornecedor: [], fornecedor_principal: [] };
+        let mesesSelecionados = [];
+        let anosSelecionados = [];
+        let dadosTabela = [];
+        let sortState = { col: null, asc: true };
+
+        window.afterSidebarInjected = function() {
+            const nav = document.getElementById('nav-menu');
+            if (nav) {
+                nav.innerHTML = `
+                    <a href="dashboard-dev-menu.html" class="menu-link"><i class="fas fa-th-large"></i> <span class="menu-text">Menu Dashboards</span></a>
+                    <a href="dashboard-dev-fornecedores.html" class="menu-link active"><i class="fas fa-truck"></i> <span class="menu-text">Por Fornecedores</span></a>
+                    <a href="dashboard-dev-vendedores.html" class="menu-link"><i class="fas fa-user"></i> <span class="menu-text">Por Vendedores</span></a>
+                    <a href="dashboard-dev-supervisores.html" class="menu-link"><i class="fas fa-user-tie"></i> <span class="menu-text">Por Supervisores</span></a>
+                    <a href="dashboard-dev-motoristas.html" class="menu-link"><i class="fas fa-id-card"></i> <span class="menu-text">Por Motoristas</span></a>
+                    <a href="dashboard-dev-produtos.html" class="menu-link"><i class="fas fa-box"></i> <span class="menu-text">Por Produtos</span></a>
+                `;
+            }
+        };
+
+        function converterData(valor) {
+            if (!valor) return '';
+            if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
+                const data = new Date((Number(valor) - 25569) * 86400 * 1000);
+                return data.toISOString().split('T')[0];
+            }
+            let str = String(valor).trim();
+            if (str.includes('-') && str.length >= 10) return str.substring(0, 10);
+            if (str.includes('/')) { const partes = str.split('/'); return `${partes[2]}-${partes[1]}-${partes[0]}`; }
+            return str;
+        }
+
+        function converterValor(valor) {
+            if (typeof valor === 'number') return valor;
+            let str = String(valor).trim().replace(/R\$/g, '').replace(/\s/g, '');
+            if (str.includes(',')) { str = str.replace(/\./g, '').replace(',', '.'); }
+            else { const partes = str.split('.'); if (partes.length > 1) { if (partes[partes.length - 1].length <= 2) { str = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1]; } else { str = partes.join(''); } } }
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // CORREÇÃO: Função que força 2 casas decimais em TODOS os lugares (gráficos e tabela)
+        function formatarMoeda(valor) {
+            if (typeof valor === 'number') return 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            let str = String(valor || '0').replace(/[^\d,-]/g, '');
+            if (str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(str);
+            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatarPercentual(valor) {
+            return valor.toFixed(2) + '%';
+        }
+
+        function toggleFiltros() {
+            const painel = document.getElementById('painel-filtros');
+            painel.classList.toggle('ativo');
+        }
+
+        async function abrirModalFiltro(coluna) {
+            colunaAtual = coluna;
+            document.getElementById('modal-titulo').textContent = coluna === 'fornecedor' ? 'Selecionar Fornecedores' : 'Selecionar Fornecedores Principais';
+            document.getElementById('modal-busca').value = '';
+            document.getElementById('modal-lista').innerHTML = 'Carregando...';
+            document.getElementById('modal-overlay').classList.add('ativo');
+
+            const db = window.supabaseClient;
+            if (!db) return;
+
+            const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
+            if (error) { document.getElementById('modal-lista').innerHTML = 'Erro ao carregar'; return; }
+
+            const valores = (data || []).sort();
+            const selecionadosAtuais = selecionados[coluna] || [];
+            document.getElementById('modal-lista').innerHTML = valores.map(val => `
+                <label>
+                    <input type="checkbox" value="${val}" ${selecionadosAtuais.includes(val) ? 'checked' : ''}> ${val}
+                </label>
+            `).join('');
+        }
+
+        function filtrarOpcoesModal() {
+            const termo = document.getElementById('modal-busca').value.toLowerCase();
+            const lista = document.getElementById('modal-lista');
+            const labels = lista.querySelectorAll('label');
+            labels.forEach(label => {
+                const texto = label.textContent.toLowerCase();
+                label.style.display = texto.includes(termo) ? 'flex' : 'none';
+            });
+        }
+
+        function fecharModalFiltro() {
+            document.getElementById('modal-overlay').classList.remove('ativo');
+            const checkboxes = document.querySelectorAll('#modal-lista input[type="checkbox"]:checked');
+            selecionados[colunaAtual] = Array.from(checkboxes).map(cb => cb.value);
+            carregarDashboard();
+        }
+
+        function selecionarTodosModal() { document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = true); }
+        function limparSelecaoModal() { document.querySelectorAll('#modal-lista input[type="checkbox"]').forEach(cb => cb.checked = false); }
+
+        async function carregarOpcoes() {
+            const db = window.supabaseClient;
+            if (!db) return;
+
+            const { data, error } = await db.rpc('get_distinct_values', { col_name: 'dtent' });
+            if (error) return;
+
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const meses = new Set();
+            const anos = new Set();
+
+            (data || []).forEach(val => {
+                const dataConvertida = converterData(val);
+                if (dataConvertida && dataConvertida.includes('-')) {
+                    const partes = dataConvertida.split('-');
+                    meses.add(partes[1]);
+                    anos.add(partes[0]);
+                }
+            });
+
+            const containerMeses = document.getElementById('botoes-meses');
+            containerMeses.innerHTML = '';
+            [...meses].sort().forEach(mesNum => {
+                const idx = parseInt(mesNum) - 1;
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = nomesMeses[idx] || mesNum;
+                chip.dataset.mes = mesNum;
+                chip.onclick = () => {
+                    chip.classList.toggle('active');
+                    atualizarMesesSelecionados();
+                    carregarDashboard();
+                };
+                containerMeses.appendChild(chip);
+            });
+
+            const containerAnos = document.getElementById('botoes-anos');
+            containerAnos.innerHTML = '';
+            [...anos].sort().forEach(ano => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = ano;
+                chip.dataset.ano = ano;
+                chip.onclick = () => {
+                    chip.classList.toggle('active');
+                    atualizarAnosSelecionados();
+                    carregarDashboard();
+                };
+                containerAnos.appendChild(chip);
+            });
+
+            mesesSelecionados = [...meses];
+            anosSelecionados = [...anos];
+            document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active'));
+            document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active'));
+        }
+
+        function atualizarMesesSelecionados() { mesesSelecionados = Array.from(document.querySelectorAll('#botoes-meses .chip.active')).map(c => c.dataset.mes); }
+        function atualizarAnosSelecionados() { anosSelecionados = Array.from(document.querySelectorAll('#botoes-anos .chip.active')).map(c => c.dataset.ano); }
+
+        function selecionarTodosMeses() { document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.add('active')); atualizarMesesSelecionados(); carregarDashboard(); }
+        function limparMeses() { document.querySelectorAll('#botoes-meses .chip').forEach(c => c.classList.remove('active')); atualizarMesesSelecionados(); carregarDashboard(); }
+        function selecionarTodosAnos() { document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.add('active')); atualizarAnosSelecionados(); carregarDashboard(); }
+        function limparAnos() { document.querySelectorAll('#botoes-anos .chip').forEach(c => c.classList.remove('active')); atualizarAnosSelecionados(); carregarDashboard(); }
+
+        // CONFIGURAÇÃO PADRÃO DOS GRÁFICOS (com formatação de 2 casas)
+        function getChartOptions(formatFunc) {
+            return {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 80, top: 20, bottom: 20 } },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#ffffff',
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 4,
+                        padding: 6,
+                        anchor: 'end',
+                        align: 'end',
+                        offset: 4,
+                        font: { weight: 'bold', size: 12 },
+                        formatter: formatFunc
+                    }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#334155', callback: function(value) { return 'R$ ' + Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } } },
+                    y: { grid: { display: false }, ticks: { color: '#334155', font: { size: 12 } } }
+                }
+            };
+        }
+
+        function getChartOptionsBarrasMes(formatFunc) {
+            return {
+                indexAxis: 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 20, bottom: 20 } },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#ffffff',
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 4,
+                        padding: 6,
+                        anchor: 'end',
+                        align: 'end',
+                        offset: 4,
+                        font: { weight: 'bold', size: 12 },
+                        formatter: formatFunc
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#334155' } },
+                    y: { grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#334155', callback: function(value) { return 'R$ ' + Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } } }
+                }
+            };
+        }
+
+        function getDonutOptions(formatFunc) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 20, top: 20, bottom: 20 } },
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#1e3a8a', font: { size: 12 } } },
+                    datalabels: {
+                        color: '#ffffff',
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 4,
+                        padding: 5,
+                        font: { weight: 'bold', size: 11 },
+                        formatter: formatFunc
+                    }
+                }
+            };
+        }
+
+        function ordenarTabela(colIndex) {
+            const col = colIndex;
+            if (sortState.col === col) sortState.asc = !sortState.asc;
+            else { sortState.col = col; sortState.asc = true; }
+
+            dadosTabela.sort((a, b) => {
+                let valA = a[col];
+                let valB = b[col];
+                const numA = parseFloat(String(valA).replace(/[^\d,-]/g, '').replace(',', '.'));
+                const numB = parseFloat(String(valB).replace(/[^\d,-]/g, '').replace(',', '.'));
+                if (!isNaN(numA) && !isNaN(numB)) return sortState.asc ? numA - numB : numB - numA;
+                if (valA < valB) return sortState.asc ? -1 : 1;
+                if (valA > valB) return sortState.asc ? 1 : -1;
+                return 0;
+            });
+
+            renderizarTabela(dadosTabela);
+        }
+
+        function renderizarTabela(dados) {
+            dadosTabela = dados;
+            const containerTabela = document.getElementById('tabela-resumo');
+
+            if (dados.length === 0) {
+                containerTabela.innerHTML = '<tr><td colspan="100%" style="text-align:center; padding:20px; color:#64748b;">Nenhum dado encontrado.</td></tr>';
+                return;
+            }
+
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const mesesOrdenados = [...mesesSelecionados].sort();
+
+            let html = '<thead><tr>';
+            html += `<th onclick="ordenarTabela(0)" style="cursor:pointer;">Fornecedores Principais ${sortState.col === 0 ? (sortState.asc ? '▲' : '▼') : '⇅'}</th>`;
+            let colIdx = 1;
+            mesesOrdenados.forEach(m => {
+                const nome = nomesMeses[parseInt(m)-1] || m;
+                html += `<th onclick="ordenarTabela(${colIdx})" style="cursor:pointer;">Vlr. DEV. ${nome}. ${sortState.col === colIdx ? (sortState.asc ? '▲' : '▼') : '⇅'}</th>`;
+                colIdx++;
+                html += `<th onclick="ordenarTabela(${colIdx})" style="cursor:pointer;">%Vlr. DEV. ${nome}. ${sortState.col === colIdx ? (sortState.asc ? '▲' : '▼') : '⇅'}</th>`;
+                colIdx++;
+            });
+            html += `<th class="coluna-total" onclick="ordenarTabela(${colIdx})" style="cursor:pointer;">Total Geral ${sortState.col === colIdx ? (sortState.asc ? '▲' : '▼') : '⇅'}</th>`;
+            colIdx++;
+            html += `<th class="coluna-total" onclick="ordenarTabela(${colIdx})" style="cursor:pointer;">% Total ${sortState.col === colIdx ? (sortState.asc ? '▲' : '▼') : '⇅'}</th>`;
+            html += '</tr></thead><tbody>';
+
+            dados.forEach((linha) => {
+                html += '<tr>';
+                html += `<td>${linha[0]}</td>`;
+                for (let i = 1; i < linha.length - 2; i++) {
+                    html += `<td>${linha[i]}</td>`;
+                }
+                html += `<td class="coluna-total">${linha[linha.length - 2]}</td>`;
+                html += `<td class="coluna-total">${linha[linha.length - 1]}</td>`;
+                html += '</tr>';
+            });
+
+            containerTabela.innerHTML = html;
+        }
+
+        async function carregarDashboard() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const empresaId = localStorage.getItem('empresaId');
+            const dataIni = document.getElementById('filtro_data_ini').value || null;
+            const dataFim = document.getElementById('filtro_data_fim').value || null;
+
+            const forn = selecionados['fornecedor'].length ? selecionados['fornecedor'] : null;
+            const fornPrinc = selecionados['fornecedor_principal'].length ? selecionados['fornecedor_principal'] : null;
+            const meses = mesesSelecionados.length ? mesesSelecionados : null;
+            const anos = anosSelecionados.length ? anosSelecionados : null;
+
+            const { data, error } = await db.rpc('get_resumo_mensal', {
+                p_empresa_id: empresaId,
+                p_anos: anos,
+                p_meses: meses,
+                p_fornecedores: forn,
+                p_fornecedores_principais: fornPrinc
+            });
+
+            if (error) { console.error('Erro ao carregar dados:', error); return; }
+
+            if (!data || data.length === 0) {
+                document.getElementById('tabela-resumo').innerHTML = '<tr><td colspan="100%" style="text-align:center; padding:20px; color:#64748b;">Nenhum dado encontrado.</td></tr>';
+                dadosTabela = [];
+                if (graficoPrincipal) { graficoPrincipal.destroy(); graficoPrincipal = null; }
+                if (graficoFornecedor) { graficoFornecedor.destroy(); graficoFornecedor = null; }
+                if (graficoBarrasMes) { graficoBarrasMes.destroy(); graficoBarrasMes = null; }
+                if (graficoRoscaAno) { graficoRoscaAno.destroy(); graficoRoscaAno = null; }
+                return;
+            }
+
+            const dadosPorPrincipal = {};
+            const dadosPorFornecedor = {};
+            const dadosPorMesPorPrincipal = {};
+            const dadosPorAnoPorPrincipal = {};
+
+            data.forEach(item => {
+                const valor = converterValor(item.valor_total);
+                if (!dadosPorPrincipal[item.fornecedor_principal]) dadosPorPrincipal[item.fornecedor_principal] = 0;
+                dadosPorPrincipal[item.fornecedor_principal] += valor;
+                if (!dadosPorFornecedor[item.fornecedor]) dadosPorFornecedor[item.fornecedor] = 0;
+                dadosPorFornecedor[item.fornecedor] += valor;
+                if (!dadosPorMesPorPrincipal[item.fornecedor_principal]) dadosPorMesPorPrincipal[item.fornecedor_principal] = {};
+                if (!dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes]) dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes] = 0;
+                dadosPorMesPorPrincipal[item.fornecedor_principal][item.mes] += valor;
+                if (!dadosPorAnoPorPrincipal[item.fornecedor_principal]) dadosPorAnoPorPrincipal[item.fornecedor_principal] = {};
+                if (!dadosPorAnoPorPrincipal[item.fornecedor_principal][item.ano]) dadosPorAnoPorPrincipal[item.fornecedor_principal][item.ano] = 0;
+                dadosPorAnoPorPrincipal[item.fornecedor_principal][item.ano] += valor;
+            });
+
+            const arrayPrincipal = Object.entries(dadosPorPrincipal).sort((a, b) => b[1] - a[1]);
+            const arrayFornecedor = Object.entries(dadosPorFornecedor).sort((a, b) => b[1] - a[1]);
+            const formatCurrency = (val) => formatarMoeda(val);
+
+            const ctx1 = document.getElementById('graficoPrincipal').getContext('2d');
+            if (graficoPrincipal) graficoPrincipal.destroy();
+            graficoPrincipal = new Chart(ctx1, {
+                type: 'bar',
+                data: { labels: arrayPrincipal.map(item => item[0]), datasets: [{ label: 'Valor', data: arrayPrincipal.map(item => item[1]), backgroundColor: 'rgba(59, 130, 246, 0.9)', borderColor: 'rgba(147, 197, 253, 1)', borderWidth: 2 }] },
+                options: getChartOptions(formatCurrency)
+            });
+
+            const ctx2 = document.getElementById('graficoFornecedor').getContext('2d');
+            if (graficoFornecedor) graficoFornecedor.destroy();
+            graficoFornecedor = new Chart(ctx2, {
+                type: 'bar',
+                data: { labels: arrayFornecedor.map(item => item[0]), datasets: [{ label: 'Valor', data: arrayFornecedor.map(item => item[1]), backgroundColor: 'rgba(29, 78, 216, 0.9)', borderColor: 'rgba(96, 165, 250, 1)', borderWidth: 2 }] },
+                options: getChartOptions(formatCurrency)
+            });
+
+            // GRÁFICO DE BARRAS POR MÊS
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const mesesOrdenados = [...mesesSelecionados].sort();
+            const labelsMeses = mesesOrdenados.map(m => nomesMeses[parseInt(m)-1] || m);
+            const totaisPorMes = mesesOrdenados.map(m => {
+                let total = 0;
+                arrayPrincipal.forEach(([principal]) => {
+                    total += dadosPorMesPorPrincipal[principal]?.[m] || 0;
+                });
+                return total;
+            });
+
+            const coresAzulDegrade = [
+                'rgba(30, 64, 175, 0.9)',  // Azul escuro
+                'rgba(37, 99, 235, 0.9)',
+                'rgba(59, 130, 246, 0.9)',
+                'rgba(96, 165, 250, 0.9)',
+                'rgba(147, 197, 253, 0.9)',
+                'rgba(191, 219, 254, 0.9)'
+            ];
+
+            const dadosDetalhadosMes = {};
+            mesesOrdenados.forEach(m => {
+                const nomeMes = nomesMeses[parseInt(m)-1] || m;
+                dadosDetalhadosMes[nomeMes] = {};
+                arrayPrincipal.forEach(([principal]) => {
+                    const valor = dadosPorMesPorPrincipal[principal]?.[m] || 0;
+                    if (valor > 0) dadosDetalhadosMes[nomeMes][principal] = valor;
+                });
+            });
+
+            const ctx3 = document.getElementById('graficoBarrasMes').getContext('2d');
+            if (graficoBarrasMes) graficoBarrasMes.destroy();
+            graficoBarrasMes = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: labelsMeses,
+                    datasets: [{
+                        label: 'Valor Total',
+                        data: totaisPorMes,
+                        backgroundColor: totaisPorMes.map((_, i) => coresAzulDegrade[i % coresAzulDegrade.length]),
+                        borderColor: 'rgba(147, 197, 253, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...getChartOptionsBarrasMes(formatCurrency),
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const indice = context.dataIndex;
+                                    let html = `<strong>${context.label}</strong><br/>`;
+                                    const detalhes = dadosDetalhadosMes[context.label] || {};
+                                    Object.entries(detalhes).forEach(([fornecedor, valor]) => {
+                                        html += `${fornecedor}: ${formatarMoeda(valor)}<br/>`;
+                                    });
+                                    return html;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#ffffff',
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4,
+                            padding: 6,
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 4,
+                            font: { weight: 'bold', size: 12 },
+                            formatter: formatCurrency
+                        }
+                    }
+                }
+            });
+
+            // GRÁFICO DE ROSCA POR ANO
+            const anosOrdenados = [...anosSelecionados].sort();
+            const labelsAnos = anosOrdenados;
+            const totaisPorAno = anosOrdenados.map(ano => {
+                let total = 0;
+                arrayPrincipal.forEach(([principal]) => {
+                    total += dadosPorAnoPorPrincipal[principal]?.[ano] || 0;
+                });
+                return total;
+            });
+
+            const dadosDetalhadosAno = {};
+            anosOrdenados.forEach(ano => {
+                dadosDetalhadosAno[ano] = {};
+                arrayPrincipal.forEach(([principal]) => {
+                    const valor = dadosPorAnoPorPrincipal[principal]?.[ano] || 0;
+                    if (valor > 0) dadosDetalhadosAno[ano][principal] = valor;
+                });
+            });
+
+            const ctx4 = document.getElementById('graficoRoscaAno').getContext('2d');
+            if (graficoRoscaAno) graficoRoscaAno.destroy();
+            graficoRoscaAno = new Chart(ctx4, {
+                type: 'doughnut',
+                data: {
+                    labels: labelsAnos,
+                    datasets: [{
+                        label: 'Valor Total',
+                        data: totaisPorAno,
+                        backgroundColor: coresAzulDegrade.slice(0, totaisPorAno.length),
+                        borderColor: 'rgba(147, 197, 253, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...getDonutOptions(formatCurrency),
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#1e3a8a', font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let html = `<strong>${context.label}</strong><br/>`;
+                                    const detalhes = dadosDetalhadosAno[context.label] || {};
+                                    Object.entries(detalhes).forEach(([fornecedor, valor]) => {
+                                        html += `${fornecedor}: ${formatarMoeda(valor)}<br/>`;
+                                    });
+                                    return html;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#ffffff',
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4,
+                            padding: 5,
+                            font: { weight: 'bold', size: 11 },
+                            formatter: formatCurrency
+                        }
+                    }
+                }
+            });
+
+            // TABELA RESUMO
+            const totalPorMes = {}; mesesOrdenados.forEach(m => { totalPorMes[m] = 0; arrayPrincipal.forEach(([principal]) => { totalPorMes[m] += dadosPorMesPorPrincipal[principal]?.[m] || 0; }); });
+            const totalGeral = arrayPrincipal.reduce((acc, [, val]) => acc + val, 0);
+
+            dadosTabela = [];
+            arrayPrincipal.forEach(([principal, valorTotal]) => {
+                const linha = [principal];
+                mesesOrdenados.forEach(m => {
+                    const v = dadosPorMesPorPrincipal[principal]?.[m] || 0;
+                    linha.push(formatarMoeda(v));
+                    linha.push(formatarPercentual(totalPorMes[m] > 0 ? (v / totalPorMes[m]) * 100 : 0));
+                });
+                linha.push(formatarMoeda(valorTotal));
+                linha.push(formatarPercentual(totalGeral > 0 ? (valorTotal / totalGeral) * 100 : 0));
+                dadosTabela.push(linha);
+            });
+            const linhaTotal = ['Total Geral'];
+            mesesOrdenados.forEach(m => {
+                const v = totalPorMes[m];
+                linhaTotal.push(formatarMoeda(v));
+                linhaTotal.push('100.00%');
+            });
+            linhaTotal.push(formatarMoeda(totalGeral));
+            linhaTotal.push('100.00%');
+            dadosTabela.push(linhaTotal);
+
+            renderizarTabela(dadosTabela);
+        }
+
+        function exportarTabelaExcel() {
+            if (dadosTabela.length === 0) { alert('Nenhum dado para exportar.'); return; }
+            const ws_data = [];
+            ws_data.push(['Fornecedores Principais', ...Array(dadosTabela[0].length - 1).fill('')]);
+            dadosTabela.forEach(linha => ws_data.push(linha));
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Resumo Fornecedores');
+            XLSX.writeFile(wb, 'resumo_fornecedores.xlsx');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const wait = setInterval(async () => {
+                if (window.supabaseClient) { clearInterval(wait); await carregarOpcoes(); carregarDashboard(); }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

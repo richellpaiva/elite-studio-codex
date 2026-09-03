@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu de Dashboards</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f0f9ff; margin: 0; padding: 0; }
+        .menu-content { margin-left: 280px; padding: 40px; transition: margin-left 0.3s ease; min-height: 100vh; box-sizing: border-box; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        
+        .grid-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        
+        .menu-card {
+            background: white; border-radius: 16px; padding: 30px; text-align: center;
+            color: #1e3a8a; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 15px;
+            transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid rgba(59,130,246,0.1);
+        }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(59,130,246,0.15); }
+        .menu-card i { font-size: 2.5rem; color: #3b82f6; }
+        
+        /* Estilos da Sidebar (são injetados pelo JS, mas esses são base) */
+        #sidebar { position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-right: 1px solid rgba(59,130,246,0.2); padding: 20px 15px; z-index: 100; display: flex; flex-direction: column; transition: width 0.3s ease; }
+        #sidebar .menu-link { display: flex; align-items: center; gap: 10px; color: #1e3a8a; text-decoration: none; padding: 12px; border-radius: 12px; transition: 0.3s; font-weight: 500; }
+        #sidebar .menu-link:hover, #sidebar .menu-link.active { background: #e0f2fe; }
+        #sidebar .menu-link i { min-width: 20px; color: #3b82f6; }
+        #sidebar .rodape { margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(59,130,246,0.2); }
+        .botao-recolher { background: #e0f2fe; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; color: #1e3a8a; margin-bottom: 15px; }
+        .empresa-nome { color: #1e3a8a; text-align: center; font-size: 1.1rem; margin-bottom: 30px; word-wrap: break-word; }
+        .logo-area { text-align: center; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar será injetada pelo sidebar-empresa.js -->
+    <div id="sidebar-container"></div>
+
+    <!-- Conteúdo Principal -->
+    <div class="menu-content" id="main-content">
+        <div class="header">
+            <h1 style="color:#1e3a8a; margin:0;">Menu de Dashboards</h1>
+            <a href="painel-empresa.html" class="btn btn-cinza" style="padding: 10px 20px; background: #e2e8f0; color: #1e3a8a; text-decoration: none; border-radius: 8px;"><i class="fas fa-arrow-left"></i> Voltar ao Painel</a>
+        </div>
+
+        <div class="grid-menu">
+            <a href="dashboard-dev-fornecedores.html" class="menu-card">
+                <i class="fas fa-truck"></i>
+                <span>Devoluções por Fornecedores</span>
+            </a>
+            <a href="dashboard-dev-vendedores.html" class="menu-card">
+                <i class="fas fa-user"></i>
+                <span>Devoluções por Vendedores</span>
+            </a>
+            <a href="dashboard-dev-supervisores.html" class="menu-card">
+                <i class="fas fa-user-tie"></i>
+                <span>Devoluções por Supervisores</span>
+            </a>
+            <a href="dashboard-dev-motoristas.html" class="menu-card">
+                <i class="fas fa-id-card"></i>
+                <span>Devoluções por Motoristas</span>
+            </a>
+            <a href="dashboard-dev-produtos.html" class="menu-card">
+                <i class="fas fa-box"></i>
+                <span>Devoluções por Produtos</span>
+            </a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="sidebar-empresa.js"></script>
+    <script>
+        // Configura o menu da sidebar dinamicamente
+        window.afterSidebarInjected = function() {
+            const nav = document.querySelector('#sidebar .nav-menu');
+            if (nav) {
+                nav.innerHTML = `
+                    <a href="dashboard-dev-menu.html" class="menu-link active"><i class="fas fa-th-large"></i> <span>Menu Dashboards</span></a>
+                    <a href="dashboard-dev-fornecedores.html" class="menu-link"><i class="fas fa-truck"></i> <span>Por Fornecedores</span></a>
+                    <a href="dashboard-dev-vendedores.html" class="menu-link"><i class="fas fa-user"></i> <span>Por Vendedores</span></a>
+                    <a href="dashboard-dev-supervisores.html" class="menu-link"><i class="fas fa-user-tie"></i> <span>Por Supervisores</span></a>
+                    <a href="dashboard-dev-motoristas.html" class="menu-link"><i class="fas fa-id-card"></i> <span>Por Motoristas</span></a>
+                    <a href="dashboard-dev-produtos.html" class="menu-link"><i class="fas fa-box"></i> <span>Por Produtos</span></a>
+                `;
+            }
+        };
+
+        // Função para recolher a sidebar (substitui a do sidebar-empresa.js)
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const main = document.getElementById('main-content');
+            const texts = sidebar.querySelectorAll('span');
+            const collapsed = sidebar.style.width === '70px';
+
+            if (!collapsed) {
+                sidebar.style.width = '70px';
+                sidebar.style.padding = '20px 10px';
+                main.style.marginLeft = '70px';
+                texts.forEach(el => el.style.display = 'none');
+            } else {
+                sidebar.style.width = '280px';
+                sidebar.style.padding = '20px 15px';
+                main.style.marginLeft = '280px';
+                texts.forEach(el => el.style.display = 'inline');
+            }
+        };
+    </script>
+</body>
+</html>

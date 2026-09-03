@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Início - Sistema de Auditoria</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="watermark"></div>
+
+    <div class="top-header">
+        <div class="user-tag">
+            <i class="fas fa-building"></i>
+            <span id="empresaNome">Empresa</span>
+            <span style="margin: 0 10px; color: #ccc;">|</span>
+            <i class="fas fa-user-circle"></i> 
+            <span id="loggedUserName"></span>
+        </div>
+        <button onclick="logout()" class="btn-outline" style="padding: 6px 14px; font-size: 0.8rem;">
+            <i class="fas fa-sign-out-alt"></i> Sair
+        </button>
+    </div>
+
+    <div class="container-center">
+        <h1 style="font-size: 2.5rem; color: #1e3a8a; margin-bottom: 10px; text-align: center; font-weight: 800;">
+            Bem-vindo, <span id="userNameDisplay"></span>
+        </h1>
+        <p style="color: #3b82f6; font-size: 1.1rem; margin-bottom: 40px; letter-spacing: 1px; font-weight: 500;">
+            Portal da Empresa: <span id="empresaDisplay"></span>
+        </p>
+
+        <div class="grid-menu" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 1000px; gap: 20px;">
+            <!-- Operacionais -->
+            <a href="analises.html" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Análises</span>
+            </a>
+            <a href="importacao.html" class="menu-item">
+                <i class="fas fa-upload"></i>
+                <span>Importação</span>
+            </a>
+            <a href="relatorios.html" class="menu-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Relatórios</span>
+            </a>
+            <a href="gerar-auditoria.html" class="menu-item">
+                <i class="fas fa-pen"></i>
+                <span>Gerar Auditoria</span>
+            </a>
+
+            <!-- Administrativas -->
+            <a href="cadastro-usuarios.html" class="menu-item">
+                <i class="fas fa-user-plus"></i>
+                <span>Cadastro de Usuários</span>
+            </a>
+            <a href="cadastro-empresas.html" class="menu-item">
+                <i class="fas fa-building"></i>
+                <span>Cadastro de Empresas</span>
+            </a>
+            <a href="configuracoes.html" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Configurações</span>
+            </a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userName = localStorage.getItem('userName') || 'Usuário';
+            const empresaId = parseInt(localStorage.getItem('empresaId') || '1');
+            const empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+            const empresa = empresas.find(e => e.id === empresaId);
+
+            document.getElementById('loggedUserName').textContent = userName;
+            document.getElementById('userNameDisplay').textContent = userName;
+            
+            if (empresa) {
+                document.getElementById('empresaNome').textContent = empresa.nome;
+                document.getElementById('empresaDisplay').textContent = empresa.nome;
+            } else {
+                document.getElementById('empresaNome').textContent = 'Empresa não encontrada';
+                document.getElementById('empresaDisplay').textContent = '—';
+            }
+        });
+    </script>
+</body>
+</html>

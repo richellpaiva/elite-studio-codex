@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento de Devoluções</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* ===== RESET E FUNDO HIGH-TECH ===== */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: 
+                radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.2), transparent 50%),
+                radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.2), transparent 50%),
+                linear-gradient(135deg, #ffffff, #f0f9ff, #e0f2fe);
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* ===== LUZES NEON DE FUNDO ===== */
+        .neon-glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.5;
+            z-index: 0;
+            animation: floatLight 10s infinite alternate ease-in-out;
+        }
+        .neon-1 { background: rgba(59, 130, 246, 0.4); top: -150px; left: -150px; box-shadow: 0 0 100px rgba(59, 130, 246, 0.3); }
+        .neon-2 { background: rgba(139, 92, 246, 0.3); bottom: -150px; right: -150px; animation-delay: 5s; box-shadow: 0 0 100px rgba(139, 92, 246, 0.3); }
+
+        @keyframes floatLight {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, -50px) scale(1.2); }
+        }
+
+        /* ===== CONTEÚDO PRINCIPAL ===== */
+        .main-content-empresa {
+            position: relative;
+            z-index: 10;
+            margin-left: 280px;
+            padding: 40px;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* ===== BOTÕES ===== */
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-green { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+        .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .btn-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+        .btn-outline { background: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.6); color: #1e3a8a; backdrop-filter: blur(10px); }
+
+        /* ===== BOTÕES DE FILTRO RÁPIDO ===== */
+        .btn-filtro-rapido {
+            background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            padding: 10px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1), 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+        .btn-filtro-rapido:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.3); }
+        .btn-filtro-rapido.ativo {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+
+        /* ===== PAINÉIS DE VIDRO ===== */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* ===== INPUTS ===== */
+        input, select {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 10px;
+            padding: 12px;
+            color: #1e3a8a;
+            outline: none;
+            transition: all 0.3s;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ===== TABELA ===== */
+        .table-container {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            margin-top: 20px;
+            max-height: 600px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        thead th {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            font-weight: 700;
+            padding: 12px;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        tbody td {
+            padding: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            color: #1e3a8a;
+            white-space: nowrap;
+        }
+        tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.05); }
+        tbody tr:hover { background: rgba(59, 130, 246, 0.1); }
+
+        /* ===== MODAIS ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(30, 58, 138, 0.4);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 30px;
+            max-width: 600px;
+            width: 95%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 60px rgba(30, 58, 138, 0.3), 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+
+        /* ===== PAGINAÇÃO ===== */
+        .paginacao {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        /* ===== STATUS / MENSAGEM ===== */
+        .status-msg {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+
+        /* ===== OVERLAY DE CARREGAMENTO (AZUL ESCURO + NEON) ===== */
+        #overlay-carregamento {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(30, 58, 138, 0.7); /* Fundo azul escuro translúcido */
+            backdrop-filter: blur(10px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        /* Card central do carregamento */
+        .loading-card {
+            background: rgba(15, 23, 42, 0.8); /* Azul muito escuro, não preto */
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            box-shadow: 
+                0 0 30px rgba(59, 130, 246, 0.4),
+                0 20px 60px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .loading-title {
+            color: #60a5fa;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+        }
+        
+        .loading-subtitle {
+            color: #93c5fd;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        #barra-progresso {
+            filter: drop-shadow(0 0 5px rgba(96, 165, 250, 0.8));
+        }
+        
+        #percentual-carregamento {
+            color: white;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Luzes de Fundo -->
+    <div class="neon-glow neon-1"></div>
+    <div class="neon-glow neon-2"></div>
+
+    <!-- Sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content-empresa">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+            <h1 style="color: #1e3a8a; margin: 0; font-weight: 800;">Acompanhamento de Devoluções</h1>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()"><i class="fas fa-folder-open"></i> Selecionar Planilhas</button>
+                <button class="btn btn-green" onclick="processarArquivos()"><i class="fas fa-upload"></i> Importar Arquivos</button>
+                <button class="btn btn-red" onclick="substituirTudo()"><i class="fas fa-trash-alt"></i> Substituir Tudo</button>
+                <button class="btn btn-cyan" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Baixar Excel</button>
+                <button class="btn btn-purple" onclick="window.location.href='dashboard-dev-menu.html'"><i class="fas fa-chart-pie"></i> Dashboard</button>
+                <button class="btn btn-purple" onclick="abrirBancosImportados()"><i class="fas fa-database"></i> Bancos Importados</button>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".xls,.xlsx" multiple style="display: none;" onchange="adicionarArquivos(event)">
+        <div id="status-importacao" class="status-msg" style="margin-bottom: 20px;">Aguardando importação...</div>
+
+        <!-- Controle de Filtros -->
+        <div class="glass-panel">
+            <button class="btn btn-outline" onclick="toggleFiltros()" style="margin-bottom: 15px;"><i class="fas fa-filter"></i> <span>Mostrar/Ocultar Filtros</span></button>
+            
+            <div id="painel-filtros" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div><label style="font-weight: 600; color: #475569;">Data Inicial</label><input type="date" id="filtro_data_inicio" style="width: 100%;"></div>
+                    <div><label style="font-weight: 600; color: #475569;">Data Final</label><input type="date" id="filtro_data_fim" style="width: 100%;"></div>
+                </div>
+
+                <!-- Filtros Rápidos -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button class="btn-filtro-rapido" id="btn-sem-acordo" onclick="alternarFiltroRapido('semAcordo')"><i class="fas fa-ban"></i> Sem Acordo Comercial</button>
+                    <button class="btn-filtro-rapido" id="btn-com-acordo" onclick="alternarFiltroRapido('comAcordo')"><i class="fas fa-check-circle"></i> Com Acordo Comercial</button>
+                    <button class="btn-filtro-rapido" id="btn-sem-bonus" onclick="alternarFiltroRapido('semBonus')"><i class="fas fa-gift"></i> Sem Bonificações</button>
+                </div>
+
+                <!-- Filtros padrão -->
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('fornecedor')"><i class="fas fa-truck"></i> Fornecedores</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('fornecedor_principal')"><i class="fas fa-building"></i> Fornecedor Principal</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('codprod')"><i class="fas fa-barcode"></i> Código Produto</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('id_nfe_produt')"><i class="fas fa-barcode"></i> ID NFE Produto</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('descricao')"><i class="fas fa-box"></i> Descrição</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('motivo')"><i class="fas fa-comment"></i> Motivo</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('nomerca')"><i class="fas fa-user"></i> Vendedores</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('nomesup')"><i class="fas fa-user-tie"></i> Supervisores</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('motorista')"><i class="fas fa-id-card"></i> Motoristas</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('rota')"><i class="fas fa-route"></i> Rotas</button>
+                    <button class="btn btn-outline" onclick="abrirModalFiltro('placa')"><i class="fas fa-car"></i> Placas</button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn btn-outline" onclick="limparFiltros()"><i class="fas fa-eraser"></i> Limpar</button>
+                    <button class="btn btn-primary" onclick="executarFiltros()"><i class="fas fa-play"></i> Executar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-container">
+            <table>
+                <thead id="thead-tabela"></thead>
+                <tbody id="tabela-devolucoes"></tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="paginacao">
+            <button class="btn btn-outline" onclick="mudarPagina(-1)"><i class="fas fa-chevron-left"></i> Anterior</button>
+            <span id="info-pagina" style="color: #1e3a8a; font-weight: 600;">Página 1 de 1</span>
+            <button class="btn btn-outline" onclick="mudarPagina(1)">Próxima <i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Modais -->
+    <div id="modal-filtro-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-filtro-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="modal-filtro-titulo" style="color: #1e3a8a; margin: 0;">Filtro</h3>
+                <button onclick="fecharModalFiltro()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <input type="text" id="modal-filtro-busca" placeholder="Digite para buscar..." oninput="filtrarOpcoesModal()" style="width: 100%; margin-bottom: 15px;">
+            <div id="modal-filtro-lista" class="modal-filtro-lista" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;"></div>
+            <div class="modal-filtro-botoes" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-outline" onclick="selecionarTodosModal()">Todos</button>
+                <button class="btn btn-outline" onclick="limparSelecaoModal()">Limpar</button>
+                <button class="btn btn-primary" onclick="fecharModalFiltro()">Concluir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-bancos" class="modal-overlay">
+        <div class="modal-box" style="max-width: 900px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #1e3a8a; margin: 0;">Bancos Importados - Devoluções</h3>
+                <button onclick="fecharBancosImportados()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0;">Nome</th>
+                        <th style="padding: 10px; border: 1px solid #e2e8f0;">Modificação</th>
+                        <th style="padding: 10px; border: 1px solid #e2e8f0;">Importação</th>
+                        <th style="padding: 10px; border: 1px solid #e2e8f0;">Tamanho</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-bancos"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE CARREGAMENTO (AZUL + NEON) -->
+    <div id="overlay-carregamento">
+        <div class="loading-card">
+            <div style="width: 120px; height: 120px; position: relative;">
+                <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(96,165,250,0.2)" stroke-width="8"/>
+                    <circle id="barra-progresso" cx="50" cy="50" r="40" fill="none" stroke="#60a5fa" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round"/>
+                </svg>
+                <span id="percentual-carregamento" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.4rem; font-weight: 700; color: white;">0%</span>
+            </div>
+            <div class="loading-title">Importando planilhas...</div>
+            <div class="loading-subtitle" id="texto-carregamento">Processando...</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="sidebar-empresa.js"></script>
+    <script>
+        // ================== ESTADO DOS FILTROS RÁPIDOS ==================
+        let filtroAcordo = 'todos';
+        let filtroSemBonus = false;
+
+        // ================== COLUNAS ATUALIZADAS ==================
+        const COLUNAS = [
+            { key: 'codfornec', label: 'COD_FORNEC', tipo: 'inteiro' },
+            { key: 'fornecedor', label: 'FORNECEDOR', tipo: 'texto' },
+            { key: 'fornecedor_principal', label: 'FORNEC_PRINCIPAL', tipo: 'texto' },
+            { key: 'numped', label: 'NUMPED', tipo: 'inteiro' },
+            { key: 'condvenda', label: 'COND_VENDA', tipo: 'texto' },
+            { key: 'desc_condvenda', label: 'DESC_CONDVENDA', tipo: 'texto' },
+            { key: 'numnota', label: 'NUMNOTA', tipo: 'inteiro' },
+            { key: 'codprod', label: 'COD_PROD', tipo: 'inteiro' },
+            { key: 'id_nfe_produt', label: 'ID_NFE_PRODUT', tipo: 'texto' },
+            { key: 'chavenfedev', label: 'CHAVE_NFE_DEV', tipo: 'texto' },
+            { key: 'dtent', label: 'DT_ENT', tipo: 'data' },
+            { key: 'codcli', label: 'COD_CLI', tipo: 'inteiro' },
+            { key: 'cpfcnpj', label: 'CPF_CNPJ', tipo: 'texto' },
+            { key: 'cliente', label: 'CLIENTE', tipo: 'texto' },
+            { key: 'codrca', label: 'COD_RCA', tipo: 'inteiro' },
+            { key: 'nomerca', label: 'NOME_RCA', tipo: 'texto' },
+            { key: 'codsupervisor', label: 'COD_SUP', tipo: 'inteiro' },
+            { key: 'nomesup', label: 'NOME_SUP', tipo: 'texto' },
+            { key: 'numnotaven', label: 'NUMNOTAVEN', tipo: 'inteiro' },
+            { key: 'chavenfevend', label: 'CHAVE_NFE_VEND', tipo: 'texto' },
+            { key: 'numcarregamento', label: 'NUM_CARREG', tipo: 'texto' },
+            { key: 'descricao', label: 'DESCRICAO', tipo: 'texto' },
+            { key: 'embalagem', label: 'EMBALAGEM', tipo: 'texto' },
+            { key: 'qt', label: 'QT', tipo: 'inteiro' },
+            { key: 'punit', label: 'P_UNIT', tipo: 'moeda' },
+            { key: 'custoultent', label: 'CUSTO_ULT_ENT', tipo: 'moeda' },
+            { key: 'vltotal', label: 'VL_TOTAL', tipo: 'moeda' },
+            { key: 'nomefunc', label: 'NOME_FUNC', tipo: 'texto' },
+            { key: 'motivo', label: 'MOTIVO', tipo: 'texto' },
+            { key: 'numbonus', label: 'NUM_BONUS', tipo: 'texto' },
+            { key: 'codfuncfecha', label: 'COD_FUNC_FECHA', tipo: 'inteiro' },
+            { key: 'nome', label: 'NOME', tipo: 'texto' },
+            { key: 'codmotorista', label: 'COD_MOTORISTA', tipo: 'inteiro' },
+            { key: 'motorista', label: 'MOTORISTA', tipo: 'texto' },
+            { key: 'codrota', label: 'COD_ROTA', tipo: 'inteiro' },
+            { key: 'rota', label: 'ROTA', tipo: 'texto' },
+            { key: 'veiculo', label: 'VEICULO', tipo: 'texto' },
+            { key: 'placa', label: 'PLACA', tipo: 'texto' }
+        ];
+
+        const FILTROS_DROPDOWN = [
+            { titulo: 'Fornecedores', coluna: 'fornecedor' },
+            { titulo: 'Fornecedor Principal', coluna: 'fornecedor_principal' },
+            { titulo: 'Código Produto', coluna: 'codprod' },
+            { titulo: 'ID NFE Produto', coluna: 'id_nfe_produt' },
+            { titulo: 'Descrição', coluna: 'descricao' },
+            { titulo: 'Motivo', coluna: 'motivo' },
+            { titulo: 'Vendedores', coluna: 'nomerca' },
+            { titulo: 'Supervisores', coluna: 'nomesup' },
+            { titulo: 'Motoristas', coluna: 'motorista' },
+            { titulo: 'Rotas', coluna: 'rota' },
+            { titulo: 'Placas', coluna: 'placa' }
+        ];
+
+        let cacheValores = {};
+        let listaArquivos = [];
+        let todosDados = [];
+        let todosFiltrados = [];
+        let paginaAtual = 1;
+        let totalRegistros = 0;
+        const POR_PAGINA = 200;
+        let filtrosSelecionados = {};
+        let filtroAtual = null;
+        let sortState = { col: null, asc: true };
+
+        // ================== FUNÇÕES DE CARREGAMENTO ==================
+        function mostrarCarregamento(texto = 'Processando...') {
+            document.getElementById('texto-carregamento').textContent = texto;
+            document.getElementById('overlay-carregamento').style.display = 'flex';
+            atualizarProgresso(0);
+        }
+        function atualizarProgresso(percent) {
+            const barra = document.getElementById('barra-progresso');
+            const texto = document.getElementById('percentual-carregamento');
+            const circumference = 251.2;
+            const offset = circumference - (percent / 100) * circumference;
+            barra.style.strokeDashoffset = offset;
+            texto.textContent = percent + '%';
+        }
+        function ocultarCarregamento() {
+            document.getElementById('overlay-carregamento').style.display = 'none';
+        }
+
+        function toggleFiltros() {
+            const painel = document.getElementById('painel-filtros');
+            painel.style.display = painel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // ================== FILTROS RÁPIDOS ==================
+        function alternarFiltroRapido(tipo) {
+            if (tipo === 'semAcordo') {
+                filtroAcordo = filtroAcordo === 'sem' ? 'todos' : 'sem';
+                document.getElementById('btn-sem-acordo').classList.toggle('ativo', filtroAcordo === 'sem');
+                document.getElementById('btn-com-acordo').classList.remove('ativo');
+            } else if (tipo === 'comAcordo') {
+                filtroAcordo = filtroAcordo === 'com' ? 'todos' : 'com';
+                document.getElementById('btn-com-acordo').classList.toggle('ativo', filtroAcordo === 'com');
+                document.getElementById('btn-sem-acordo').classList.remove('ativo');
+            } else if (tipo === 'semBonus') {
+                filtroSemBonus = !filtroSemBonus;
+                document.getElementById('btn-sem-bonus').classList.toggle('ativo', filtroSemBonus);
+            }
+            executarFiltros();
+        }
+
+        // ================== MODAL DE FILTRO ==================
+        async function abrirModalFiltro(coluna) {
+            filtroAtual = coluna;
+            document.getElementById('modal-filtro-titulo').textContent = 'Filtrar: ' + FILTROS_DROPDOWN.find(f => f.coluna === coluna).titulo;
+            document.getElementById('modal-filtro-busca').value = '';
+            document.getElementById('modal-filtro-lista').innerHTML = 'Carregando...';
+            document.getElementById('modal-filtro-overlay').style.display = 'flex';
+
+            const db = window.supabaseClient;
+            if (!db) return;
+            const { data, error } = await db.rpc('get_distinct_values', { col_name: coluna });
+            if (error) { document.getElementById('modal-filtro-lista').innerHTML = 'Erro ao carregar'; return; }
+            const valores = (data || []).sort();
+            const selecionadosAtuais = filtrosSelecionados[coluna] || [];
+            document.getElementById('modal-filtro-lista').innerHTML = valores.map(val => `
+                <label style="display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid #f1f5f9;">
+                    <input type="checkbox" value="${val}" ${selecionadosAtuais.includes(val) ? 'checked' : ''}> ${val}
+                </label>`).join('');
+        }
+        function fecharModalFiltro() {
+            const checkboxes = document.querySelectorAll('#modal-filtro-lista input[type="checkbox"]:checked');
+            filtrosSelecionados[filtroAtual] = Array.from(checkboxes).map(cb => cb.value);
+            document.getElementById('modal-filtro-overlay').style.display = 'none';
+            executarFiltros();
+        }
+        function filtrarOpcoesModal() {
+            const termo = document.getElementById('modal-filtro-busca').value.toLowerCase();
+            document.querySelectorAll('#modal-filtro-lista label').forEach(label => {
+                label.style.display = label.textContent.toLowerCase().includes(termo) ? 'flex' : 'none';
+            });
+        }
+        function selecionarTodosModal() {
+            document.querySelectorAll('#modal-filtro-lista input').forEach(cb => cb.checked = true);
+        }
+        function limparSelecaoModal() {
+            document.querySelectorAll('#modal-filtro-lista input').forEach(cb => cb.checked = false);
+        }
+
+        // ================== EXECUTAR FILTROS ==================
+        async function executarFiltros() {
+            mostrarCarregamento('Aplicando filtros...');
+            await new Promise(r => setTimeout(r, 50));
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+            const db = window.supabaseClient;
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            for (const filtro of FILTROS_DROPDOWN) {
+                const sel = filtrosSelecionados[filtro.coluna] || [];
+                if (sel.length > 0) query = query.in(filtro.coluna, sel);
+            }
+            if (filtroAcordo === 'com') query = query.ilike('motivo', '%ACORDO COMERCIAL%');
+            if (filtroAcordo === 'sem') query = query.or('motivo.is.null,motivo.not.ilike.%ACORDO COMERCIAL%');
+            if (filtroSemBonus) query = query.or('desc_condvenda.is.null,desc_condvenda.not.ilike.%BONIFICAÇÃO%');
+
+            const { count, error } = await query.select('*', { count: 'exact', head: true });
+            if (error) { ocultarCarregamento(); return; }
+            totalRegistros = count;
+            paginaAtual = 1;
+            const { data } = await query.range(0, POR_PAGINA - 1);
+            ocultarCarregamento();
+            todosDados = data || [];
+            sortState = { col: null, asc: true };
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtro_data_inicio').value = '';
+            document.getElementById('filtro_data_fim').value = '';
+            filtrosSelecionados = {};
+            filtroAcordo = 'todos';
+            filtroSemBonus = false;
+            document.getElementById('btn-sem-acordo').classList.remove('ativo');
+            document.getElementById('btn-com-acordo').classList.remove('ativo');
+            document.getElementById('btn-sem-bonus').classList.remove('ativo');
+            carregarDevolucoes();
+        }
+
+        // ================== PAGINAÇÃO ==================
+        function mudarPagina(delta) {
+            const novaPagina = paginaAtual + delta;
+            if (novaPagina < 1) return;
+            carregarPagina(novaPagina);
+        }
+        async function carregarPagina(numero) {
+            paginaAtual = numero;
+            mostrarCarregamento('Carregando página...');
+            const db = window.supabaseClient;
+            const from = (paginaAtual - 1) * POR_PAGINA;
+            const to = from + POR_PAGINA - 1;
+            let query = db.from('devolucoes').select('*').eq('empresa_id', localStorage.getItem('empresaId'));
+            const dataInicio = document.getElementById('filtro_data_inicio').value;
+            const dataFim = document.getElementById('filtro_data_fim').value;
+            if (dataInicio) query = query.gte('dtent', dataInicio);
+            if (dataFim) query = query.lte('dtent', dataFim);
+            for (const filtro of FILTROS_DROPDOWN) {
+                const sel = filtrosSelecionados[filtro.coluna] || [];
+                if (sel.length > 0) query = query.in(filtro.coluna, sel);
+            }
+            if (filtroAcordo === 'com') query = query.ilike('motivo', '%ACORDO COMERCIAL%');
+            if (filtroAcordo === 'sem') query = query.or('motivo.is.null,motivo.not.ilike.%ACORDO COMERCIAL%');
+            if (filtroSemBonus) query = query.or('desc_condvenda.is.null,desc_condvenda.not.ilike.%BONIFICAÇÃO%');
+            const { data, error } = await query.range(from, to);
+            ocultarCarregamento();
+            if (error) return;
+            todosDados = data || [];
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+        function atualizarInfoPagina() {
+            const totalPaginas = Math.ceil(totalRegistros / POR_PAGINA);
+            document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas || 1} (${totalRegistros} registros)`;
+        }
+
+        // ================== FORMATAÇÃO ==================
+        function formatarMoeda(valor) {
+            if (typeof valor === 'number') return 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            let str = String(valor || '0').replace(/[^\d,-]/g, '');
+            if (str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(str);
+            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        }
+        function formatarData(valor) {
+            if (!valor) return '';
+            if (!isNaN(valor) && Number(valor) > 20000 && Number(valor) < 60000) {
+                const d = new Date((Number(valor) - 25569) * 86400 * 1000);
+                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            }
+            return valor || '';
+        }
+        function formatarValor(valor, tipo) {
+            if (tipo === 'moeda') return formatarMoeda(valor);
+            if (tipo === 'data') return formatarData(valor);
+            return valor || '';
+        }
+
+        // ================== RENDERIZAR TABELA ==================
+        function renderizarTabela(dados) {
+            const thead = document.getElementById('thead-tabela');
+            const tbody = document.getElementById('tabela-devolucoes');
+            thead.innerHTML = '<tr>' + COLUNAS.map(col => {
+                const sortIcon = sortState.col === col.key ? (sortState.asc ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>') : '';
+                return `<th onclick="ordenarPor('${col.key}')" style="border-right: 1px solid rgba(255,255,255,0.2);">${col.label} ${sortIcon}</th>`;
+            }).join('') + '</tr>';
+            tbody.innerHTML = '';
+            if (dados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${COLUNAS.length}" style="text-align:center; padding:20px;">Nenhum registro</td></tr>`;
+                return;
+            }
+            dados.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = COLUNAS.map(col => `<td style="border: 1px solid rgba(59,130,246,0.15); white-space: nowrap;">${formatarValor(item[col.key], col.tipo)}</td>`).join('');
+                tbody.appendChild(tr);
+            });
+        }
+        function ordenarPor(colKey) {
+            if (sortState.col === colKey) sortState.asc = !sortState.asc;
+            else { sortState.col = colKey; sortState.asc = true; }
+            todosDados.sort((a, b) => {
+                let valA = a[colKey], valB = b[colKey];
+                if (valA < valB) return sortState.asc ? -1 : 1;
+                if (valA > valB) return sortState.asc ? 1 : -1;
+                return 0;
+            });
+            renderizarTabela(todosDados);
+        }
+        function exportarExcel() {
+            if (todosDados.length === 0) { alert('Nenhum dado para exportar.'); return; }
+            const ws_data = [COLUNAS.map(col => col.label)];
+            todosDados.forEach(item => ws_data.push(COLUNAS.map(col => formatarValor(item[col.key], col.tipo))));
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Devoluções');
+            XLSX.writeFile(wb, 'devolucoes.xlsx');
+        }
+
+        // ================== BANCOS IMPORTADOS ==================
+        function abrirBancosImportados() {
+            document.getElementById('modal-bancos').style.display = 'flex';
+            carregarBancosImportados();
+        }
+        function fecharBancosImportados() {
+            document.getElementById('modal-bancos').style.display = 'none';
+        }
+        function formatarDataHora(valor) {
+            if (!valor) return '—';
+            const d = new Date(valor);
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+        async function carregarBancosImportados() {
+            const db = window.supabaseClient;
+            if (!db) return;
+            const { data } = await db.from('historico_importacoes').select('*').eq('empresa_id', localStorage.getItem('empresaId')).eq('categoria', 'devolucoes').order('data_importacao', { ascending: false });
+            const tbody = document.getElementById('tabela-bancos');
+            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nenhum arquivo</td></tr>'; return; }
+            const map = new Map();
+            data.forEach(item => {
+                const chave = `${item.nome_arquivo}_${item.tamanho_arquivo}`;
+                if (!map.has(chave)) map.set(chave, item);
+            });
+            tbody.innerHTML = '';
+            map.forEach(item => {
+                tbody.innerHTML += `<tr><td style="border: 1px solid #e2e8f0;"><i class="fas fa-file-excel"></i> ${item.nome_arquivo}</td><td style="border: 1px solid #e2e8f0;">${formatarDataHora(item.data_criacao)}</td><td style="border: 1px solid #e2e8f0;">${formatarDataHora(item.data_importacao)}</td><td style="border: 1px solid #e2e8f0;">${item.tamanho_arquivo}</td></tr>`;
+            });
+        }
+
+        // ================== IMPORTAÇÃO ==================
+        function mapearLinha(linha, empresaId) {
+            const fornecedor = linha[1] || '';
+            const numnota = linha[5] || '';
+            const codprod = linha[18] || '';
+            const id_nfe_produt = numnota && codprod ? `${numnota}|${codprod}` : '';
+            let principal = '';
+            if (fornecedor) {
+                const palavras = String(fornecedor).split(' ').filter(p => p !== '');
+                principal = palavras.slice(0, 2).join(' ');
+            }
+            return {
+                empresa_id: empresaId,
+                codfornec: linha[0] || '', fornecedor, fornecedor_principal: principal,
+                numped: linha[2] || '', condvenda: linha[3] || '', desc_condvenda: linha[4] || '',
+                numnota, codprod, id_nfe_produt, chavenfedev: linha[6] || '', dtent: linha[7] || '',
+                codcli: linha[8] || '', cpfcnpj: linha[9] || '', cliente: linha[10] || '',
+                codrca: linha[11] || '', nomerca: linha[12] || '', codsupervisor: linha[13] || '',
+                nomesup: linha[14] || '', numnotaven: linha[15] || '', chavenfevend: linha[16] || '',
+                numcarregamento: linha[17] || '', descricao: linha[19] || '', embalagem: linha[20] || '',
+                qt: linha[21] || '', punit: linha[22] || '', custoultent: linha[23] || '',
+                vltotal: linha[24] || '', nomefunc: linha[25] || '', motivo: linha[26] || '',
+                numbonus: linha[27] || '', codfuncfecha: linha[28] || '', nome: linha[29] || '',
+                codmotorista: linha[30] || '', motorista: linha[31] || '', codrota: linha[32] || '',
+                rota: linha[33] || '', veiculo: linha[34] || '', placa: linha[35] || ''
+            };
+        }
+        function detectarCabecalho(matriz) {
+            for (let i = 0; i < matriz.length; i++) {
+                if (matriz[i] && matriz[i][0] === 'CODFORNEC') return i;
+            }
+            return 0;
+        }
+        async function lerArquivos() {
+            const empresaId = localStorage.getItem('empresaId');
+            let todasLinhas = [];
+            for (const file of listaArquivos) {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                const cabecalho = detectarCabecalho(matriz);
+                for (let j = cabecalho + 1; j < matriz.length; j++) {
+                    if (matriz[j] && matriz[j][0] !== '') todasLinhas.push(mapearLinha(matriz[j], empresaId));
+                }
+            }
+            return todasLinhas;
+        }
+        function adicionarArquivos(event) {
+            listaArquivos = listaArquivos.concat(Array.from(event.target.files));
+            document.getElementById('status-importacao').textContent = `${listaArquivos.length} arquivo(s) selecionado(s).`;
+            event.target.value = '';
+        }
+        async function registrarHistorico(nomeArquivo, dataMod, linhas, tamanho) {
+            const db = window.supabaseClient;
+            const empresaId = localStorage.getItem('empresaId');
+            const { data: existente } = await db.from('historico_importacoes').select('id').eq('empresa_id', empresaId).eq('nome_arquivo', nomeArquivo).eq('tamanho_arquivo', tamanho).maybeSingle();
+            if (existente) await db.from('historico_importacoes').update({ data_criacao: dataMod, data_importacao: new Date().toISOString() }).eq('id', existente.id);
+            else await db.from('historico_importacoes').insert({ empresa_id: empresaId, nome_arquivo: nomeArquivo, data_criacao: dataMod, quantidade_linhas: linhas, tamanho_arquivo: tamanho, categoria: 'devolucoes' });
+        }
+        async function processarArquivos() {
+            if (listaArquivos.length === 0) { alert('Nenhum arquivo selecionado.'); return; }
+            mostrarCarregamento(`Importando planilhas... (${listaArquivos.length} arquivo(s) selecionado(s). Processando...)`);
+            const linhas = await lerArquivos();
+            const db = window.supabaseClient;
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < linhas.length; i += CHUNK_SIZE) {
+                atualizarProgresso(Math.round((i / linhas.length) * 100));
+                await db.from('devolucoes').insert(linhas.slice(i, i + CHUNK_SIZE));
+            }
+            for (const file of listaArquivos) {
+                const tamanho = (file.size / 1024).toFixed(2) + ' KB';
+                await registrarHistorico(file.name, new Date(file.lastModified).toISOString(), linhas.length, tamanho);
+            }
+            ocultarCarregamento();
+            document.getElementById('status-importacao').textContent = `✅ ${linhas.length} registros importados!`;
+            listaArquivos = [];
+            await limparDuplicadosSQL();
+            await carregarDevolucoes();
+        }
+        async function limparDuplicadosSQL() {
+            const db = window.supabaseClient;
+            try {
+                const { data } = await db.rpc('limpar_duplicados', { p_empresa_id: localStorage.getItem('empresaId') });
+                if (data && data.length > 0) document.getElementById('status-importacao').textContent += ` (${data[0].total_removidos} duplicados removidos)`;
+            } catch (e) { console.error(e); }
+        }
+        async function substituirTudo() {
+            if (!confirm('⚠️ Isso vai apagar TODOS os dados e importar os arquivos. Deseja continuar?')) return;
+            mostrarCarregamento('Apagando dados...');
+            const db = window.supabaseClient;
+            const empresaId = localStorage.getItem('empresaId');
+            await db.from('devolucoes').delete().eq('empresa_id', empresaId);
+            ocultarCarregamento();
+            if (listaArquivos.length > 0) await processarArquivos();
+            else { document.getElementById('status-importacao').textContent = 'Nenhum arquivo selecionado.'; await carregarDevolucoes(); }
+        }
+        async function carregarDevolucoes() {
+            const db = window.supabaseClient;
+            const empresaId = localStorage.getItem('empresaId');
+            mostrarCarregamento('Carregando dados...');
+            const { count } = await db.from('devolucoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId);
+            totalRegistros = count || 0;
+            const { data } = await db.from('devolucoes').select('*').eq('empresa_id', empresaId).range(0, POR_PAGINA - 1);
+            ocultarCarregamento();
+            todosDados = data || [];
+            paginaAtual = 1;
+            sortState = { col: null, asc: true };
+            renderizarTabela(todosDados);
+            atualizarInfoPagina();
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            const wait = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(wait);
+                    carregarDevolucoes();
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

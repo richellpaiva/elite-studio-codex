@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importação de Dados - Auditoria</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Biblioteca do Supabase (OBRIGATÓRIA para conectar ao banco) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Biblioteca para leitura de Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <script>
+        // Proteção de rota: se não estiver logado, volta pro login
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="watermark"></div>
+
+    <div class="container-center" style="justify-content: flex-start; padding-top: 80px;">
+        <a href="home.html" style="position: absolute; top: 25px; left: 30px; color: #3b82f6; text-decoration: none; transition: 0.3s; border: 1px solid rgba(59,130,246,0.2); padding: 10px 18px; border-radius: 50px; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px; font-weight: 500;">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+
+        <div style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; max-width: 1400px; width: 100%; border: 1px solid rgba(59,130,246,0.2); box-shadow: 0 20px 60px rgba(31,38,135,0.15); position: relative; z-index: 1; text-align: center;">
+            
+            <div style="margin-bottom: 25px;">
+                <i class="fas fa-file-import" style="font-size: 45px; color: #3b82f6; margin-bottom: 10px;"></i>
+                <h2 style="color: #1e3a8a; font-size: 1.8rem; margin-bottom: 5px;">Importar Relatório 1707</h2>
+                <p style="color: #64748b; font-weight: 400; font-size: 0.95rem;">
+                    Gerencial x Endereçado
+                </p>
+            </div>
+
+            <!-- Área de Upload -->
+            <div style="border: 2px dashed rgba(59,130,246,0.3); border-radius: 16px; padding: 40px 20px; background: rgba(255,255,255,0.4); transition: 0.3s; cursor: pointer;" id="dropArea">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 40px; color: #94a3b8; margin-bottom: 10px;"></i>
+                <p style="color: #64748b;">Arraste o arquivo .xlsx ou <strong style="color: #3b82f6;">clique para selecionar</strong></p>
+                <input type="file" id="fileInput" accept=".xlsx" style="display: none;">
+            </div>
+
+            <!-- Botão de Importar (confirma a gravação no banco) -->
+            <button id="importBtn" onclick="confirmImport()" style="display: none; margin-top: 20px; justify-content: center; width: 100%;" class="btn-primary">
+                <i class="fas fa-database"></i> Importar Dados
+            </button>
+
+            <!-- Botões de Backup (Exportar/Importar JSON para segurança) -->
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                <button onclick="exportData()" class="btn-outline" style="padding: 10px 20px; font-size: 0.9rem;">
+                    <i class="fas fa-download"></i> Exportar Backup
+                </button>
+                <label class="btn-outline" style="padding: 10px 20px; font-size: 0.9rem; cursor: pointer; margin-bottom: 0;">
+                    <i class="fas fa-upload"></i> Importar Backup
+                    <input type="file" id="backupInput" accept=".json" style="display: none;" onchange="importBackup(event)">
+                </label>
+            </div>
+
+            <!-- Pré-visualização dos dados (sempre visível se houver dados) -->
+            <div id="previewContainer" style="margin-top: 25px; border-top: 1px solid rgba(59,130,246,0.1); padding-top: 20px; display: none;">
+                <p style="color: #1e3a8a; text-align: left; font-weight: 600; margin-bottom: 10px;">
+                    Visualização dos Dados:
+                </p>
+                <div id="tableWrapper" style="max-height: 600px; overflow-y: auto; border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; background: rgba(255,255,255,0.6); position: relative;">
+                    <table id="dataTable" style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <!-- Cabeçalho fixo com nomes das colunas -->
+                        <thead id="tableHead" style="position: sticky; top: 0; z-index: 10;"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <p style="color: #64748b; font-size: 0.8rem; margin-top: 5px; text-align: left;">
+                    * Dados carregados do banco de dados (Supabase).
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Carregamento (Gráfico de Rosca) -->
+    <div id="loadingOverlay" style="display: none; position: fixed; inset: 0; background: rgba(30, 58, 138, 0.85); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center; flex-direction: column;">
+        <div class="donut-container">
+            <div class="donut-ring" id="donutRing"></div>
+            <div class="donut-inner">
+                <span class="donut-text" id="progressText">0%</span>
+            </div>
+        </div>
+        <p style="color: #ffffff; margin-top: 25px; font-size: 1rem; font-weight: 300; letter-spacing: 1px;">Processando dados...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
